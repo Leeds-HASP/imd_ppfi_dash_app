@@ -252,3 +252,210 @@ a:hover {
   background: #eef4ff;
   border-left-color: #2255aa;
 }
+
+/* accessibility: keyboard focus styles */
+
+/* visible focus ring on all interactive elements */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--brand-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* focus on summary (collapsible sections) */
+summary:focus-visible {
+  outline: 3px solid var(--brand-blue);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* accessibility, fieldset/legend resets */
+
+/* fieldset used as sidebar section card */
+fieldset.sidebar-section {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 12px;
+  background-color: #ffffff;
+  position: relative;
+  min-width: 0;
+}
+
+/* visually hidden legend. screen readers still read it */
+fieldset.sidebar-section > legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* sidebar collapsibles */
+
+details.sidebar-collapsible {
+  padding: 0;
+  overflow: visible;
+}
+
+details.sidebar-collapsible > summary.sidebar-collapsible-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--brand-navy);
+  user-select: none;
+  border-radius: 10px;
+}
+
+details.sidebar-collapsible > summary.sidebar-collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+
+details.sidebar-collapsible > summary.sidebar-collapsible-summary::after {
+  content: "▾";
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--brand-navy);
+  transition: transform 0.2s;
+  text-transform: none;
+}
+
+details.sidebar-collapsible[open] > summary.sidebar-collapsible-summary::after {
+  transform: rotate(-180deg);
+}
+
+details.sidebar-collapsible > summary.sidebar-collapsible-summary:hover {
+  background: rgba(124, 198, 254, 0.15);
+}
+
+details.sidebar-collapsible > *:not(summary) {
+  padding: 0 10px 10px 10px;
+}
+
+/* how-to accordion for abt panel */
+
+.how-to-accordion details {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.accordion-summary {
+  font-family: "Figtree", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--brand-navy);
+  background: #f6f7ff;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.accordion-summary::-webkit-details-marker {
+  display: none;
+}
+
+.accordion-summary::after {
+  content: "+";
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--brand-navy);
+  transition: transform 0.2s;
+}
+
+details[open] > .accordion-summary::after {
+  content: "−";
+}
+
+.accordion-summary:hover {
+  background: rgba(124, 198, 254, 0.15);
+}
+
+.accordion-body {
+  padding: 10px 14px;
+  background: #ffffff;
+}
+
+/* loading overlay (CSS-only, uses data-dash-is-loading) */
+
+.dash-graph {
+  position: relative;
+}
+
+.dash-graph[data-dash-is-loading="true"]::before {
+  content: "";
+  position: absolute;
+  top: 40px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.65);
+  z-index: 19;
+  pointer-events: none;
+}
+
+.dash-graph[data-dash-is-loading="true"]::after {
+  content: "";
+  position: absolute;
+  top: calc(50% + 20px);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  border: 4px solid rgba(36, 34, 111, 0.2);
+  border-top-color: #24226f;
+  border-radius: 50%;
+  animation: map-spin 0.75s linear infinite;
+  z-index: 20;
+  pointer-events: none;
+}
+
+@keyframes map-spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* side bar scrolljng */
+
+.sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(36, 34, 111, 0.2) transparent;
+}
+
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(36, 34, 111, 0.2);
+  border-radius: 4px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(36, 34, 111, 0.4);
+}
+
+/* mismatch map panel */
+#mismatch_map_panel {
+  min-width: 0;
+}
+
+#mismatch_map_panel .dash-graph {
+  flex: 1;
+  min-height: 0;
+}
