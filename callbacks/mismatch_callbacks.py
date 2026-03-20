@@ -69,7 +69,7 @@ def _make_domain_bar(domain_cols, values_dict, composite_decile, composite_label
     fig.update_layout(
         margin=dict(l=10, r=30, t=35, b=20),
         paper_bgcolor='white', plot_bgcolor='white',
-        xaxis=dict(range=[0, 11], dtick=1, title='Decile'),
+        xaxis=dict(range=[0, 10], dtick=1, title='Decile'),
         yaxis=dict(autorange='reversed'),
         showlegend=False, height=300,
     )
@@ -148,7 +148,7 @@ def _narrative(lsoa_name, ppfi_dec, imd_dec, diff, domain_row):
     elif abs(diff) <= 1:
         paras.append(html.P(
             f'{lsoa_name} shows close alignment between PPFI (decile {ppfi_int}) and '
-            f'IMD (decile {imd_int}). Both indices tell a consistent story of deprivation '
+            f'IMD (decile {imd_int}). Both indices tell a consistent story of need for support '
             'for this area.'
         ))
 
