@@ -414,7 +414,7 @@ def make_map(
     fig.update_traces(
         customdata=customdata,
         hovertemplate=hovertemplate,
-        marker_line_width=0.3,
+        marker_line_width=0 if geography == "lsoa" else 0.3,
     )
 
     fig.update_layout(
@@ -580,3 +580,4 @@ def make_map(
 
 def add_highlight_outline(fig, gdf, geojson, feature_id: str):
     return fig
+
