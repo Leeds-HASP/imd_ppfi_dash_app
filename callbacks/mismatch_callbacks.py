@@ -121,9 +121,9 @@ def _narrative(lsoa_name, ppfi_dec, imd_dec, diff, domain_row):
         if concerns:
             paras.append(html.P(
                 f'However, {_join_labels(concerns)} '
-                + ('still scores \u2264 3 on PPFI, indicating a remaining food access concern.'
+                + ('still scores \u2264 3 on PPFI, indicating a remaining food affordability and access challenges.'
                    if len(concerns) == 1 else
-                   'still score \u2264 3 on PPFI, indicating remaining food access concerns.')
+                   'still score \u2264 3 on PPFI, indicating remaining food affordability and access challenges.')
             ))
 
     elif diff < -3:
@@ -148,7 +148,7 @@ def _narrative(lsoa_name, ppfi_dec, imd_dec, diff, domain_row):
     elif abs(diff) <= 1:
         paras.append(html.P(
             f'{lsoa_name} shows close alignment between PPFI (decile {ppfi_int}) and '
-            f'IMD (decile {imd_int}). Both indices tell a consistent story of need for support '
+            f'IMD (decile {imd_int}). Both indices tell a consistent story of vulnerability'
             'for this area.'
         ))
 
