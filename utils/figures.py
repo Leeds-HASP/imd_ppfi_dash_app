@@ -472,7 +472,7 @@ def make_map(
     )
 
     if geography == "lsoa" and selected_lads:
-        fig = add_union_outline_layer(fig, gdf_lsoa, width=6)
+        fig = add_union_outline_layer(fig, gdf_lsoa, width=3)
 
     if show_lad_boundaries and geojson_lad:
         selected_lads = selected_lads or []
@@ -509,7 +509,7 @@ def make_map(
             fig.add_trace(lad_trace)
             fig.data = (fig.data[-1],) + fig.data[:-1]
 
-            # draw all LAD outlines — misalignment at selected edge is masked by union outline above
+            # draw all LAD outlines, misalignment at selected edge is masked by union outline above
             lad_outline_layer = {
                 "sourcetype": "geojson",
                 "source": geojson_lad,
@@ -523,7 +523,7 @@ def make_map(
             fig.update_layout(mapbox_layers=existing + [lad_outline_layer])
 
         else:
-            # simple LAD outlines when not drilled
+            #simple LAD outlines when not drilled
             lad_layer = {
                 "sourcetype": "geojson",
                 "source": geojson_lad,
