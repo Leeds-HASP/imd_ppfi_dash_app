@@ -244,32 +244,49 @@ def add_union_outline_layer(fig, gdf_lsoa_subset, width=3):
         return fig
 
     try:
-        union_geom = gdf_lsoa_subset.geometry.unary_union
-        boundary = union_geom.boundary
+        import plotly.graph_objects as go
+        from shapely.ops import unary_union
+        from shapely.geometry import MultiPolygon, Polygon
 
-        outline_geojson = {
-            "type": "FeatureCollection",
-            "features": [{
-                "type": "Feature",
-                "properties": {},
-                "geometry": mapping(boundary),
-            }],
-        }
+        geoms = gdf_lsoa_subset.geometry.dropna()
+        if geoms.empty:
+            return fig
 
-        layer = {
-            "sourcetype": "geojson",
-            "source": outline_geojson,
-            "type": "line",
-            "color": "#24226f", 
-            "line": {"width": width},
-            "below": "",
-        }
+        union_geom = unary_union([g.buffer(0) for g in geoms])
 
-        existing = list(getattr(fig.layout.mapbox, "layers", []) or [])
-        fig.update_layout(mapbox_layers=existing + [layer])
+        # collect exterior rings as lat/lon coordinate lists for Scattermapbox
+        # using NaN separators between rings so plotly draws them as separate lines
+        lons, lats = [], []
 
-    except Exception:
-        pass
+        def add_ring(coords):
+            for lon, lat in coords:
+                lons.append(lon)
+                lats.append(lat)
+            lons.append(float("nan"))
+            lats.append(float("nan"))
+
+        if union_geom.geom_type == "Polygon":
+            add_ring(union_geom.exterior.coords)
+        elif union_geom.geom_type == "MultiPolygon":
+            for poly in union_geom.geoms:
+                add_ring(poly.exterior.coords)
+
+        trace = go.Scattermapbox(
+            lon=lons,
+            lat=lats,
+            mode="lines",
+            line=dict(color="#24226f", width=width),
+            hoverinfo="skip",
+            showlegend=False,
+            name="",
+        )
+        fig.add_trace(trace)
+        print(f"[add_union_outline_layer] drew outline over {len(geoms)} LSOAs width={width}")
+
+    except Exception as e:
+        import traceback
+        print(f"[add_union_outline_layer] failed: {e}")
+        traceback.print_exc()
 
     return fig
 
@@ -414,7 +431,8 @@ def make_map(
     fig.update_traces(
         customdata=customdata,
         hovertemplate=hovertemplate,
-        marker_line_width=0 if geography == "lsoa" else 0.3,
+        marker_line_width=0.5 if geography == "lsoa" else 0.3,
+        marker_line_color="rgba(255,255,255,0.4)" if geography == "lsoa" else "rgba(0,0,0,0.3)",
     )
 
     fig.update_layout(
@@ -454,7 +472,7 @@ def make_map(
     )
 
     if geography == "lsoa" and selected_lads:
-        fig = add_union_outline_layer(fig, gdf, width=3)
+        fig = add_union_outline_layer(fig, gdf_lsoa, width=6)
 
     if show_lad_boundaries and geojson_lad:
         selected_lads = selected_lads or []
@@ -462,110 +480,53 @@ def make_map(
         selected_ids = {s["lad_id"] for s in selected_lads if s.get("lad_id")}
 
         if drilled:
-            # build LAD outlines by dissolving LSOA geometries grouped by lad_cd.
-            #this guarantees perfect alignment since both use the same geometry source.
+            # Use geojson_lad directly — no dissolve needed, avoids geometry artefacts
+            lad_bg = gdf_lad_full.copy()
             lad_name_col = _first_existing_col(
-                gdf_lsoa_full, [LAD_NAME, "LAD24NM", "LAD23NM", "lad_name", "lad_nm", "lad_name"]
+                lad_bg, [LAD_NAME, "LAD24NM", "LAD23NM", "lad_name", "NAME", "name"]
             )
-            lad_cd_col = "lad_cd" if "lad_cd" in gdf_lsoa_full.columns else None
+            lad_bg["name"] = _safe_series(lad_bg, lad_name_col, "")
+            lad_bg["_sel"] = lad_bg["id"].isin(selected_ids).astype(int)
 
-            if lad_cd_col:
-                try:
-                    dissolved = gdf_lsoa_full[[lad_cd_col, "geometry"]].dissolve(by=lad_cd_col).reset_index()
-                    dissolved["_sel"] = dissolved[lad_cd_col].isin(selected_ids).astype(int)
+            import plotly.graph_objects as go
+            lad_trace = go.Choroplethmapbox(
+                geojson=geojson_lad,
+                locations=lad_bg["id"],
+                z=lad_bg["_sel"],
+                featureidkey="properties.id",
+                colorscale=[
+                    [0, "rgba(160,160,180,0.08)"],
+                    [1, "rgba(100,100,140,0.18)"],
+                ],
+                showscale=False,
+                marker_line_color="rgba(0,0,0,0)",
+                marker_line_width=0,
+                marker_opacity=0,
+                customdata=lad_bg[["name"]].values,
+                hovertemplate="<b>%{customdata[0]}</b><br>Click to select / deselect<extra></extra>",
+                name="LAD boundaries",
+            )
+            fig.add_trace(lad_trace)
+            fig.data = (fig.data[-1],) + fig.data[:-1]
 
-                    # build a GeoJSON from dissolved LAD polygons for the clickable trace
-                    from shapely.geometry import mapping as shape_mapping
-                    dissolved_geojson = {
-                        "type": "FeatureCollection",
-                        "features": [
-                            {
-                                "type": "Feature",
-                                "id": row[lad_cd_col],
-                                "properties": {"id": row[lad_cd_col]},
-                                "geometry": shape_mapping(row["geometry"]),
-                            }
-                            for _, row in dissolved.iterrows()
-                        ],
-                    }
+            # draw all LAD outlines — misalignment at selected edge is masked by union outline above
+            lad_outline_layer = {
+                "sourcetype": "geojson",
+                "source": geojson_lad,
+                "type": "line",
+                "color": "#555577",
+                "line": {"width": 0.8},
+                "opacity": 0.35,
+                "below": "",
+            }
+            existing = list(getattr(fig.layout.mapbox, "layers", []) or [])
+            fig.update_layout(mapbox_layers=existing + [lad_outline_layer])
 
-                    # look up LAD names from gdf_lad_full
-                    lad_bg = gdf_lad_full.copy()
-                    bg_name_col = _first_existing_col(lad_bg, [LAD_NAME, "LAD24NM", "LAD23NM", "lad_name", "NAME", "name"])
-                    lad_bg["name"] = _safe_series(lad_bg, bg_name_col, "")
-                    name_lookup = lad_bg.set_index("id")["name"].to_dict()
-
-                    dissolved["name"] = dissolved[lad_cd_col].map(name_lookup).fillna("")
-
-                    import plotly.graph_objects as go
-                    lad_trace = go.Choroplethmapbox(
-                        geojson=dissolved_geojson,
-                        locations=dissolved[lad_cd_col],
-                        z=dissolved["_sel"],
-                        featureidkey="properties.id",
-                        colorscale=[[0, "rgba(160,160,180,0.15)"], [1, "rgba(100,100,140,0.25)"]],
-                        showscale=False,
-                        marker_line_color="#666",
-                        marker_line_width=1.0,
-                        marker_opacity=1,
-                        customdata=dissolved[["name"]].values,
-                        hovertemplate="<b>%{customdata[0]}</b><br>Click to select / deselect<extra></extra>",
-                        name="LAD boundaries",
-                    )
-                    fig.add_trace(lad_trace)
-                    fig.data = (fig.data[-1],) + fig.data[:-1]
-                except Exception:
-                    # fall back to geojson_lad lines if dissolve fails
-                    lad_layer = {
-                        "sourcetype": "geojson",
-                        "source": geojson_lad,
-                        "type": "line",
-                        "color": "#1a1a2e",
-                        "line": {"width": 0.8},
-                        "opacity": 0.35,
-                        "below": "",
-                    }
-                    existing = list(getattr(fig.layout.mapbox, "layers", []) or [])
-                    fig.update_layout(mapbox_layers=existing + [lad_layer])
-            else:
-                # no lad_cd column — fall back to line layer
-                lad_layer = {
-                    "sourcetype": "geojson",
-                    "source": geojson_lad,
-                    "type": "line",
-                    "color": "#1a1a2e",
-                    "line": {"width": 0.8},
-                    "opacity": 0.35,
-                    "below": "",
-                }
-                existing = list(getattr(fig.layout.mapbox, "layers", []) or [])
-                fig.update_layout(mapbox_layers=existing + [lad_layer])
         else:
-            # no drilldown: dissolve LSOA geometries to get perfectly-aligned LAD
-            # outlines, then draw as a non-clickable line layer for orientation.
-            lad_cd_col = "lad_cd" if "lad_cd" in gdf_lsoa_full.columns else None
-            dissolved_source = None
-            if lad_cd_col:
-                try:
-                    from shapely.geometry import mapping as shape_mapping
-                    dissolved = gdf_lsoa_full[[lad_cd_col, "geometry"]].dissolve(by=lad_cd_col).reset_index()
-                    dissolved_source = {
-                        "type": "FeatureCollection",
-                        "features": [
-                            {
-                                "type": "Feature",
-                                "properties": {},
-                                "geometry": shape_mapping(row["geometry"]),
-                            }
-                            for _, row in dissolved.iterrows()
-                        ],
-                    }
-                except Exception:
-                    pass
-
+            # simple LAD outlines when not drilled
             lad_layer = {
                 "sourcetype": "geojson",
-                "source": dissolved_source if dissolved_source else geojson_lad,
+                "source": geojson_lad,
                 "type": "line",
                 "color": "#1a1a2e",
                 "line": {"width": 0.8},
@@ -580,4 +541,3 @@ def make_map(
 
 def add_highlight_outline(fig, gdf, geojson, feature_id: str):
     return fig
-
