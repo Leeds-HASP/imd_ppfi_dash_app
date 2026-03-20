@@ -35,7 +35,7 @@ layout = html.Div(
                 html.Div(
                     [
                         html.Div(
-                            "Index of Multiple Deprivation & Priority Places for Food Index: Explorer",
+                            "Priority Places for Food Index & Index of Multiple Deprivation: Explorer",
                             className="brand-title",
                         ),
                         html.Div(
@@ -103,7 +103,7 @@ layout = html.Div(
                             options=[
                                 {"label": " About this tool", "value": "about"},
                                 {"label": " Index map", "value": "map"},
-                                {"label": " IMD vs PPFI comparison", "value": "compare"},
+                                {"label": " PPFI vs IMD comparison", "value": "compare"},
                                 {"label": " Differences table", "value": "mismatch"},
                             ],
                             value="about",
@@ -507,13 +507,13 @@ layout = html.Div(
                     id="mismatch_panel",
                     style={"display": "none"},
                     children=[
-                        html.H3("Differences table: IMD vs PPFI"),
+                        html.H3("Differences table: PPFI vs IMD"),
                         html.P(
-                            "This explorer identifies neighbourhoods where the Index of Multiple Deprivation (IMD) "
-                            "and the Priority Places for Food Index (PPFI) tell different stories. "
-                            "A large gap between the two scores can flag areas that are relatively deprived but "
-                            "have good food access, or areas that appear less deprived but face significant food "
-                            "vulnerability.",
+                            "This explorer identifies neighbourhoods where the Priority Places for Food Index (PPFI) "
+                            "and the Index of Multiple Deprivation (IMD) tell different stories. "
+                            "A large gap between the two scores can flag areas that are relatively deprived based on IMD but "
+                            "have good food access according to PPFI, or areas that appear less deprived based on IMD but face significant food "
+                            "vulnerability according to PPFI.",
                             style={"lineHeight": "1.7", "marginBottom": "8px"},
                         ),
                         html.Div(
@@ -649,7 +649,7 @@ layout = html.Div(
                     style={"display": "block"},
                     children=[
                         html.H2(
-                            "Index of Multiple Deprivation & Priority Places for Food Index Explorer",
+                            "Priority Places for Food Index & Index of Multiple Deprivation Explorer",
                             style={"marginTop": 0, "marginBottom": "4px", "color": "#1a1a2e"},
                         ),
                         html.P(
@@ -659,7 +659,7 @@ layout = html.Div(
                         html.P(
                             "Deprivation and food vulnerability don't always affect the same places. "
                             "Two neighbourhoods can look similar on paper yet have completely different everyday realities. "
-                            "This tool brings together the IMD and PPFI to make those differences easier to see.",
+                            "This tool brings together the PPFI and IMD to make those differences easier to see.",
                             style={"lineHeight": "1.7", "marginBottom": "20px"},
                         ),
 
@@ -727,12 +727,12 @@ layout = html.Div(
                                 html.Details(children=[
                                     html.Summary("Index map", className="accordion-summary"),
                                     html.Div(className="accordion-body", children=[
-                                        html.P("Select 'Index map' from the View menu. Choose between a single index view or a differences map using the toggle at the top of the map. Choose IMD or PPFI from the Dataset selector, then a domain or 'Combined' for an overall score.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                        html.P("Select 'Index map' from the View menu. Choose between a single index view or a differences map using the toggle at the top of the map. Choose PPFI or IMD from the Dataset selector, then a domain or 'Combined' for an overall score across all domains.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
                                         html.P("Click any Local Authority District (LAD) on the map to drill down to Lower Super Output Area (LSOA) level. Click multiple LADs to compare neighbouring areas. Click a selected LAD again to deselect it.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
                                     ]),
                                 ]),
                                 html.Details(children=[
-                                    html.Summary("IMD vs PPFI comparison", className="accordion-summary"),
+                                    html.Summary("PPFI vs IMD comparison", className="accordion-summary"),
                                     html.Div(className="accordion-body", children=[
                                         html.P("View both indices side by side. Use the Compare domains panel to choose a domain for each index independently.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
                                         html.P("Both maps respond to the same geography and filter controls so you can compare patterns across the same area simultaneously.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
@@ -741,7 +741,7 @@ layout = html.Div(
                                 html.Details(children=[
                                     html.Summary("Differences table", className="accordion-summary"),
                                     html.Div(className="accordion-body", children=[
-                                        html.P("Ranks neighbourhoods by the gap between their IMD and PPFI scores, flagging areas where the two indices tell different stories.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                        html.P("Ranks neighbourhoods by the gap between their PPFI and IMD scores, flagging areas where the two indices tell different stories.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
                                         html.P("Filter by local authority, direction of mismatch, or minimum decile gap. Select a row to see a domain-by-domain breakdown in the charts above the table.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
                                     ]),
                                 ]),
@@ -784,7 +784,7 @@ layout = html.Div(
                                 "lineHeight": "1.6",
                             },
                             children=[
-                                "Sargent, M., Wilkins, E., Jenneson, V., Johnstone, A., Morris, M. and Kininmonth, A. 2026. ",
+                                "Sargent, M., Wilkins, E., Jenneson, V., Johnstone, A., Morris, M. and Kininmonth, A.R. 2026. ",
                                 html.Em("PPFI-IMD Explorer"),
                                 ". Data asset provided by the Healthy & Sustainable Places Data Service (ES/Z504336/1). Available at: ",
                                 html.A(
