@@ -19,7 +19,7 @@ layout = html.Div(
     },
     children=[
         # navbar
-        html.Div(
+        html.Header(
             className="navbar",
             style={
                 "position": "fixed",
@@ -35,7 +35,7 @@ layout = html.Div(
                 html.Div(
                     [
                         html.Div(
-                            "Index of Multiple Deprivation & Priority Places for Food Index: Explorer",
+                            "Priority Places for Food Index & Index of Multiple Deprivation: Explorer",
                             className="brand-title",
                         ),
                         html.Div(
@@ -43,16 +43,37 @@ layout = html.Div(
                             className="brand-subtitle",
                         ),
                     ]
-                )
+                ),
+                # HASP logo (right side of navbar)
+                html.A(
+                    html.Img(
+                        src="/assets/hasp_logo.png",
+                        alt="Healthy and Sustainable Places Data Service",
+                        style={
+                            "height": "52px",
+                            "maxWidth": "160px",
+                            "objectFit": "contain",
+                        },
+                        #fallback text shown if image not found
+                        title="Healthy and Sustainable Places Data Service",
+                    ),
+                    href="https://hasp.ac.uk",
+                    target="_blank",
+                    rel="noopener noreferrer",
+                    **{"aria-label": "Healthy and Sustainable Places Data Service website, opens in a new tab"},
+                    style={"display": "flex", "alignItems": "center"},
+                ),
             ],
         ),
 
-        dcc.Store(id="selected_lad_store", data=None),
+        dcc.Store(id="selected_lad_store", data=[]),
         dcc.Store(id="divergence_selected_lsoa", data=None),
+        dcc.Download(id="mismatch_download"),
 
         # sidebar
-        html.Div(
+        html.Nav(
             className="sidebar",
+            **{"aria-label": "Main navigation"},
             style={
                 "width": SIDEBAR_W,
                 "position": "fixed",
@@ -64,34 +85,41 @@ layout = html.Div(
                 "overflowY": "auto",
                 "zIndex": 900,
                 "boxSizing": "border-box",
-                "background": "#ffffff",  # ensures no blue behind sidebar
+                "background": "#ffffff", 
             },
             children=[
-                # view selector
-                html.Div(
+                #view selector
+                html.Fieldset(
                     className="sidebar-section",
+                    style={"border": "1px solid rgba(36,34,111,0.15)", "borderRadius": "14px",
+                           "padding": "12px", "marginBottom": "12px", "background": "#ffffff"},
                     children=[
+                        html.Legend("View", style={"position": "absolute", "opacity": 0, "pointerEvents": "none", "fontSize": 0}),
                         html.Div("View", className="sidebar-label"),
+                        html.Div("Select how to explore the data.", style={"fontSize": "11px", "color": "#888", "marginBottom": "6px"}),
                         dcc.RadioItems(
                             id="view_selector",
                             className="nav-radio",
                             options=[
-                                {"label": " About", "value": "about"},
-                                {"label": " Map", "value": "map"},
-                                {"label": " Side-by-side", "value": "compare"},
-                                {"label": " Mismatch explorer", "value": "mismatch"},
+                                {"label": " About this tool", "value": "about"},
+                                {"label": " Index map", "value": "map"},
+                                {"label": " PPFI vs IMD comparison", "value": "compare"},
+                                {"label": " Differences table", "value": "mismatch"},
                             ],
                             value="about",
                         ),
                     ],
                 ),
 
-                # geography selector
-                html.Div(
+                #geography selector
+                html.Fieldset(
                     id="geography_block",
                     className="sidebar-section",
+                    style={"border": "none", "marginBottom": "12px"},
                     children=[
+                        html.Legend("Geography", style={"position": "absolute", "opacity": 0, "pointerEvents": "none", "fontSize": 0}),
                         html.Div("Geography", className="sidebar-label"),
+                        html.Div("Choose the level of geographic detail.", style={"fontSize": "11px", "color": "#888", "marginBottom": "6px"}),
                         dcc.RadioItems(
                             id="geography_selector",
                             className="nav-radio",
@@ -105,17 +133,21 @@ layout = html.Div(
                 ),
 
                 # dataset selector
-                html.Div(
+                html.Fieldset(
                     id="dataset_block",
                     className="sidebar-section",
+                    style={"border": "none", "marginBottom": "12px"},
                     children=[
+                        html.Legend("Dataset", style={"position": "absolute", "opacity": 0, "pointerEvents": "none", "fontSize": 0}),
                         html.Div("Dataset", className="sidebar-label"),
+                        html.Div("Choose which index to display on the map.",
+                                 style={"fontSize": "11px", "color": "#888", "marginBottom": "6px"}),
                         dcc.RadioItems(
                             id="dataset_selector",
                             className="nav-radio",
                             options=[
-                                {"label": " PPFI", "value": "ppfi"},
-                                {"label": " IMD", "value": "imd"},
+                                {"label": " Priority Places for Food Index", "value": "ppfi"},
+                                {"label": " Index of Multiple Deprivation", "value": "imd"},
                             ],
                             value="ppfi",
                         ),
@@ -123,11 +155,13 @@ layout = html.Div(
                 ),
 
                 # domain selector
-                html.Div(
+                html.Details(
                     id="domain_block",
-                    className="sidebar-section",
+                    className="sidebar-section sidebar-collapsible",
+                    **{"aria-label": "Domain"},
                     children=[
-                        html.Div("Domain", className="sidebar-label"),
+                        html.Summary("Domain", className="sidebar-collapsible-summary"),
+                        html.Div("Select a specific subdomain or use Combined for an overall score.", style={"fontSize": "11px", "color": "#888", "marginBottom": "6px", "marginTop": "4px"}),
                         dcc.Dropdown(
                             id="domain_selector",
                             value="combined",
@@ -137,12 +171,13 @@ layout = html.Div(
                 ),
 
                 # lsoa filter
-                html.Div(
+                html.Details(
                     id="lsoa_decile_filter_block",
-                    className="sidebar-section",
+                    className="sidebar-section sidebar-collapsible",
                     style={"display": "none"},
                     children=[
-                        html.Div("LSOA decile filter", className="sidebar-label"),
+                        html.Summary("LSOA decile filter", className="sidebar-collapsible-summary"),
+                        html.Div("Filter to show only areas in selected deciles.", style={"fontSize": "11px", "color": "#888", "marginBottom": "6px", "marginTop": "4px"}),
                         dcc.Dropdown(
                             id="lsoa_decile_filter",
                             options=[{"label": f"Decile {i}", "value": i} for i in range(1, 11)],
@@ -155,54 +190,82 @@ layout = html.Div(
                 ),
 
                 # LAD percentile filter
-                html.Div(
+                html.Details(
                     id="lad_rank_filter_block",
-                    className="sidebar-section",
-                    style={"display": "none"},
+                    className="sidebar-section sidebar-collapsible",
+                    style={"display": "none", "paddingBottom": "8px"},
                     children=[
-                        html.Div("LAD rank percentile filter", className="sidebar-label"),
-                        dcc.Slider(
-                            id="lad_rank_filter",
-                            min=0,
-                            max=100,
-                            step=5,
-                            value=100,
-                            marks={p: f"{p}%" for p in range(0, 101, 20)},
+                        html.Summary("LAD rank percentile filter", className="sidebar-collapsible-summary"),
+                        html.Div("Show only the top % of most vulnerable local authorities.", style={"fontSize": "11px", "color": "#888", "marginBottom": "6px", "marginTop": "4px"}),
+                        html.Div(
+                            dcc.Slider(
+                                id="lad_rank_filter",
+                                min=0,
+                                max=100,
+                                step=5,
+                                value=100,
+                                marks={p: f"{p}%" for p in range(0, 101, 20)},
+                            ),
+                            style={"paddingBottom": "20px"},
                         ),
                     ],
                 ),
 
                 # compare domains
-                html.Div(
+                html.Details(
                     id="compare_domains_block",
-                    className="sidebar-section",
+                    className="sidebar-section sidebar-collapsible",
                     style={"display": "none"},
                     children=[
-                        html.Div("Compare domains", className="sidebar-label"),
-                        html.Div("PPFI Domain", style={"fontWeight": 700, "marginTop": "6px"}),
+                        html.Summary("Compare domains", className="sidebar-collapsible-summary"),
+                        html.Div("Choose a domain for each index independently.", style={"fontSize": "11px", "color": "#888", "marginBottom": "6px", "marginTop": "4px"}),
+                        html.Div("PPFI Domain", style={"fontWeight": 700, "marginTop": "6px"}, id="label-ppfi-domain"),
                         dcc.Dropdown(id="domain_selector_ppfi", value="combined", clearable=False),
-                        html.Div("IMD Domain", style={"fontWeight": 700, "marginTop": "12px"}),
+                        html.Div("IMD Domain", style={"fontWeight": 700, "marginTop": "12px"}, id="label-imd-domain"),
                         dcc.Dropdown(id="domain_selector_imd", value="combined", clearable=False),
+                    ],
+                ),
+
+                # mismatch threshold filter
+                html.Details(
+                    id="mismatch_threshold_block",
+                    className="sidebar-section sidebar-collapsible",
+                    style={"display": "none"},
+                    children=[
+                        html.Summary("Mismatch threshold", className="sidebar-collapsible-summary"),
+                        html.Div("Show only LSOAs where the absolute decile difference is at or above this value.",
+                                 style={"fontSize": "11px", "color": "#888", "marginBottom": "6px", "marginTop": "4px"}),
+                        html.Div(
+                            dcc.Slider(
+                                id="mismatch_threshold_slider",
+                                min=0,
+                                max=9,
+                                step=0.5,
+                                value=0,
+                                marks={i: str(i) for i in range(10)},
+                            ),
+                            style={"paddingBottom": "20px"},
+                        ),
                     ],
                 ),
             ],
         ),
 
         # main
-        html.Div(
+        html.Main(
             className="main",
             style={
                 "marginLeft": SIDEBAR_W,
-                "paddingTop": NAV_H,             
+                "marginTop": NAV_H,
                 "paddingLeft": MAIN_PAD_X,
                 "paddingRight": MAIN_PAD_X,
                 "paddingBottom": MAIN_PAD_B,
 
-                "height": f"calc(100vh - {NAV_H})",  
+                "height": f"calc(100vh - {NAV_H})",
                 "display": "flex",
                 "flexDirection": "column",
                 "minHeight": 0,
-                "overflow":"hidden",
+                "overflow": "hidden",
                 "background": "#ffffff",
                 "boxSizing": "border-box",
             },
@@ -211,8 +274,38 @@ layout = html.Div(
                 html.Div(
                     id="map_row",
                     style={
-                        "display": "none"},
+                        "display": "none",
+                        "flexDirection": "column",
+                        "flex": 1,
+                        "minHeight": 0,
+                    },
                     children=[
+                        #map type toggle
+                        html.Div(
+                            style={
+                                "display": "flex",
+                                "gap": "8px",
+                                "padding": "6px 14px",
+                                "borderBottom": "1px solid var(--border)",
+                                "background": "#ffffff",
+                                "flexShrink": 0,
+                                "alignItems": "center",
+                            },
+                            children=[
+                                html.Span("Map type:", id="map-type-label", style={"fontSize": "12px", "color": "#888", "marginRight": "4px"}),
+                                dcc.RadioItems(
+                                    id="map_type_selector",
+                                    className="nav-radio",
+                                    options=[
+                                        {"label": " Single index", "value": "single"},
+                                        {"label": " Difference map", "value": "mismatch_map"},
+                                    ],
+                                    value="single",
+                                    inline=True,
+                                    style={"fontSize": "13px"},
+                                ),
+                            ],
+                        ),
                         html.Div(
                             id="map_container",
                             style={
@@ -226,13 +319,71 @@ layout = html.Div(
                             children=[
                                 dcc.Graph(
                                     id="map_single",
-                                    style={
-                                        "flex": 1,
-                                        "height": "100%",
-                                        "width": "100%",
-                                        "minHeight": 0,
+                                    figure={
+                                        "data": [],
+                                        "layout": {
+                                            "xaxis": {"visible": False},
+                                            "yaxis": {"visible": False},
+                                            "paper_bgcolor": "white",
+                                            "plot_bgcolor": "white",
+                                            "annotations": [],
+                                            "margin": {"l": 0, "r": 0, "t": 0, "b": 0},
+                                        },
                                     },
-                                    config={"scrollZoom": True},
+                                    style={"flex": 1, "height": "100%", "width": "100%", "minHeight": 0},
+                                    config={
+                                        "scrollZoom": True,
+                                        "toImageButtonOptions": {"filename": "IMD_PPFI_Explorer", "format": "png"},
+                                    },
+                                ),
+                            ],
+                        ),
+                        #nismatch map panel, replaces map_container in the same flex slot
+                        html.Div(
+                            id="mismatch_map_panel",
+                            style={"display": "none", "flex": 1, "flexDirection": "column", "minHeight": 0, "width": "100%"},
+                            children=[
+                                dcc.Graph(
+                                    id="mismatch_map",
+                                    figure={
+                                        "data": [],
+                                        "layout": {
+                                            "xaxis": {"visible": False}, "yaxis": {"visible": False},
+                                            "paper_bgcolor": "white", "plot_bgcolor": "white",
+                                            "annotations": [],
+                                            "margin": {"l": 0, "r": 0, "t": 0, "b": 0},
+                                        },
+                                    },
+                                    style={"flex": 1, "height": "100%", "width": "100%", "minHeight": 0},
+                                    config={
+                                        "scrollZoom": True,
+                                        "responsive": True,
+                                        "toImageButtonOptions": {"filename": "IMD_PPFI_Explorer_difference_map", "format": "png"},
+                                    },
+                                ),
+                            ],
+                        ),
+                        #info bar
+                        html.Div(
+                            id="map_info_bar",
+                            style={
+                                "flexShrink": 0,
+                                "height": "52px",
+                                "padding": "6px 14px",
+                                "background": "#f6f7ff",
+                                "borderTop": "1px solid var(--border)",
+                                "fontSize": "13px",
+                                "color": "#444",
+                                "lineHeight": "1.4",
+                                "overflow": "hidden",
+                                "display": "flex",
+                                "alignItems": "center",
+                            },
+                            children=[
+                                html.Span(
+                                    "Hover over an area to see insight.",
+                                    id="map_info_bar_text",
+                                    style={"color": "#aaa", "fontStyle": "italic"},
                                 )
                             ],
                         ),
@@ -275,13 +426,20 @@ layout = html.Div(
                                         html.H4("Priority Places for Food Index", style={"margin": "0 0 6px 0"}),
                                         dcc.Graph(
                                             id="map_compare_left",
-                                            style={
-                                                "flex": 1,
-                                                "height": "100%",
-                                                "width": "100%",
-                                                "minHeight": 0,
+                                            figure={
+                                                "data": [],
+                                                "layout": {
+                                                    "xaxis": {"visible": False}, "yaxis": {"visible": False},
+                                                    "paper_bgcolor": "white", "plot_bgcolor": "white",
+                                                    "annotations": [],
+                                                    "margin": {"l": 0, "r": 0, "t": 0, "b": 0},
+                                                },
                                             },
-                                            config={"scrollZoom": True},
+                                            style={"flex": 1, "height": "100%", "width": "100%", "minHeight": 0},
+                                            config={
+                                                "scrollZoom": True,
+                                                "toImageButtonOptions": {"filename": "IMD_PPFI_Explorer_PPFI", "format": "png"},
+                                            },
                                         ),
                                     ],
                                 ),
@@ -297,16 +455,48 @@ layout = html.Div(
                                         html.H4("Index of Multiple Deprivation", style={"margin": "0 0 6px 0"}),
                                         dcc.Graph(
                                             id="map_compare_right",
-                                            style={
-                                                "flex": 1,
-                                                "height": "125%",
-                                                "width": "100%",
-                                                "minHeight": 0,
+                                            figure={
+                                                "data": [],
+                                                "layout": {
+                                                    "xaxis": {"visible": False}, "yaxis": {"visible": False},
+                                                    "paper_bgcolor": "white", "plot_bgcolor": "white",
+                                                    "annotations": [],
+                                                    "margin": {"l": 0, "r": 0, "t": 0, "b": 0},
+                                                },
                                             },
-                                            config={"scrollZoom": True},
+                                            style={"flex": 1, "height": "125%", "width": "100%", "minHeight": 0},
+                                            config={
+                                                "scrollZoom": True,
+                                                "toImageButtonOptions": {"filename": "IMD_PPFI_Explorer_IMD", "format": "png"},
+                                            },
                                         ),
                                     ],
                                 ),
+                            ],
+                        ),
+                        # shared info bar below both compare maps
+                        html.Div(
+                            id="compare_info_bar",
+                            style={
+                                "flexShrink": 0,
+                                "height": "36px",
+                                "padding": "6px 14px",
+                                "background": "#f6f7ff",
+                                "borderTop": "1px solid var(--border)",
+                                "fontSize": "13px",
+                                "color": "#444",
+                                "lineHeight": "1.4",
+                                "overflow": "hidden",
+                                "display": "flex",
+                                "alignItems": "center",
+                                "marginTop": "6px",
+                            },
+                            children=[
+                                html.Span(
+                                    "Hover over an area to see the name and insight.",
+                                    id="compare_info_bar_text",
+                                    style={"color": "#aaa", "fontStyle": "italic"},
+                                )
                             ],
                         ),
                     ],
@@ -315,29 +505,78 @@ layout = html.Div(
                 # mismatch
                 html.Div(
                     id="mismatch_panel",
-                    style={"display": "none",
-                           "marginTop": "10px",
-                           "overflowY":"auto",
-                           "padding":"16px",
-                           "boxSizing":"border-box",
-                          },
+                    style={"display": "none"},
                     children=[
-                        html.H3("Mismatch explorer"),
-                        # --- filters row ---
+                        html.H3("Differences table: PPFI vs IMD"),
+                        html.P(
+                            "This explorer identifies neighbourhoods where the Priority Places for Food Index (PPFI) "
+                            "and the Index of Multiple Deprivation (IMD) tell different stories. "
+                            "A large gap between the two scores can flag areas that are relatively deprived based on IMD but "
+                            "have good food access according to PPFI, or areas that appear less deprived based on IMD but face significant food "
+                            "vulnerability according to PPFI.",
+                            style={"lineHeight": "1.7", "marginBottom": "8px"},
+                        ),
+                        html.Div(
+                            style={
+                                "background": "#f6f7ff",
+                                "border": "1px solid var(--border)",
+                                "borderRadius": "8px",
+                                "padding": "10px 16px",
+                                "fontSize": "13px",
+                                "marginBottom": "16px",
+                                "lineHeight": "1.6",
+                            },
+                            children=[
+                                html.Strong("How to use this explorer: "),
+                                "Use the filters below to narrow by local authority, mismatch direction, or minimum "
+                                "decile gap. Select any row in the table to see a full breakdown of PPFI and IMD "
+                                "domain scores for that neighbourhood - the charts and summary appear above the table "
+                                "once a row is selected. Click column headers to sort.",
+                            ],
+                        ),
+                        #domain divergence panel (shown once row selected, above table)
+                        html.Div(
+                            id="domain_divergence_panel",
+                            style={"display": "none"},
+                            children=[
+                                html.H4(id="domain_divergence_title"),
+                                html.Div(id="domain_divergence_narrative"),
+                                html.Div(
+                                    className="domain-bars-row",
+                                    children=[
+                                        html.Div(className="domain-bar-col", children=[
+                                            html.H5("PPFI domains (decile; 1 = highest priority)"),
+                                            dcc.Graph(id="domain_bar_ppfi",
+                                                      style={"height": "300px"},
+                                                      config={"displayModeBar": False}),
+                                        ]),
+                                        html.Div(className="domain-bar-col", children=[
+                                            html.H5("IMD domains (decile; 1 = most deprived)"),
+                                            dcc.Graph(id="domain_bar_imd",
+                                                      style={"height": "300px"},
+                                                      config={"displayModeBar": False}),
+                                        ]),
+                                    ],
+                                ),
+                                html.Hr(style={"borderColor": "#e0e4f0", "margin": "16px 0"}),
+                            ],
+                        ),
+                        #filters + download row
                         html.Div(
                             style={"display": "flex", "gap": "12px", "marginBottom": "10px",
                                    "flexWrap": "wrap", "alignItems": "flex-end"},
                             children=[
                                 html.Div([
-                                    html.Label("Filter by Local Authority:", style={"fontSize": "12px"}),
+                                    html.Label("Filter by Local Authority:", htmlFor="mismatch_lad_filter", style={"fontSize": "12px"}),
                                     dcc.Dropdown(
                                         id="mismatch_lad_filter", options=[], value=None,
                                         placeholder="All local authorities",
-                                        style={"width": "240px"}, clearable=True,
+                                        style={"width": "280px"}, clearable=True,
+                                        multi=True,
                                     ),
                                 ]),
                                 html.Div([
-                                    html.Label("Direction:", style={"fontSize": "12px"}),
+                                    html.Label("Direction:", htmlFor="mismatch_direction_filter", style={"fontSize": "12px"}),
                                     dcc.Dropdown(
                                         id="mismatch_direction_filter",
                                         options=[
@@ -351,17 +590,36 @@ layout = html.Div(
                                     ),
                                 ]),
                                 html.Div([
-                                    html.Label("Min. decile gap:", style={"fontSize": "12px"}),
+                                    html.Label("Min. decile gap:", htmlFor="mismatch_min_gap", style={"fontSize": "12px", "display": "block", "marginBottom": "4px"}),
                                     dcc.Input(
                                         id="mismatch_min_gap", type="number",
                                         min=0, max=9, step=1, value=None,
                                         placeholder="e.g. 3",
-                                        style={"width": "80px"},
+                                        style={"width": "100px"},
                                     ),
                                 ]),
+                                # download button aligned to bottom of filter row
+                                html.Div(
+                                    html.Button(
+                                        "⬇ Download CSV",
+                                        id="mismatch_download_btn",
+                                        style={
+                                            "background": "var(--brand-navy)",
+                                            "color": "#ffffff",
+                                            "border": "none",
+                                            "borderRadius": "8px",
+                                            "padding": "7px 16px",
+                                            "fontSize": "13px",
+                                            "fontWeight": "600",
+                                            "cursor": "pointer",
+                                            "fontFamily": "Figtree, system-ui, sans-serif",
+                                            "whiteSpace": "nowrap",
+                                        },
+                                    ),
+                                    style={"marginLeft": "auto"},
+                                ),
                             ],
                         ),
-                        # --- table ---
                         dash_table.DataTable(
                             id="mismatch_table",
                             columns=[], data=[],
@@ -382,122 +640,178 @@ layout = html.Div(
                                  "fontWeight": "bold"},
                             ],
                         ),
-                        # --- domain divergence panel (hidden until row selected) ---
-                        html.Div(
-                            id="domain_divergence_panel",
-                            style={"display": "none"},
-                            children=[
-                                html.Hr(),
-                                html.H4(id="domain_divergence_title"),
-                                html.Div(id="domain_divergence_narrative"),
-                                html.Div(
-                                    className="domain-bars-row",
-                                    children=[
-                                        html.Div(className="domain-bar-col", children=[
-                                            html.H5("PPFI domains (decile; 1 = highest priority)"),
-                                            dcc.Graph(id="domain_bar_ppfi",
-                                                      style={"height": "300px"},
-                                                      config={"displayModeBar": False}),
-                                        ]),
-                                        html.Div(className="domain-bar-col", children=[
-                                            html.H5("IMD domains (decile; 1 = most deprived)"),
-                                            dcc.Graph(id="domain_bar_imd",
-                                                      style={"height": "300px"},
-                                                      config={"displayModeBar": False}),
-                                        ]),
-                                    ],
-                                ),
-                            ],
-                        ),
                     ],
                 ),
 
                 #about
                 html.Div(
                     id="about_panel",
-                    style={"display": "block", 
-                           "marginTop": "10px",
-                           "overflowY":"auto",
-                           "padding":"16px",
-                           "boxSizing":"border-box",
-                          },                    
+                    style={"display": "block"},
                     children=[
                         html.H2(
-                            "A tool to compare the Index of Multiple Deprivation & Priority Places for Food Index",
+                            "Priority Places for Food Index & Index of Multiple Deprivation Explorer",
                             style={"marginTop": 0, "marginBottom": "4px", "color": "#1a1a2e"},
                         ),
-                        html.P("Two maps, two realities \u2014 this tool helps you see where they align and where they don't.",
-                               style={"color": "#666", "fontSize": "13px", "marginBottom": "24px"}),
                         html.P(
-                            "Across England, living conditions vary widely. The Index of Multiple Deprivation (IMD) "
-                            "is the official measure of deprivation across neighbourhoods in England and has historically "
-                            "been used to target and evaluate support initiatives, including those relating to food."
+                            "Two maps, two realities - this tool helps you see where they align and where they don't.",
+                            style={"color": "#666", "fontSize": "13px", "marginBottom": "12px"},
                         ),
                         html.P(
-                            "However, looking at a map of \u2018deprivation\u2019 doesn\u2019t always show you who is struggling the most. "
-                            "Difficulties in accessing healthy, affordable food don\u2019t always affect the most deprived places. "
-                            "Two neighbourhoods might look similar on paper yet have completely different everyday realities. "
-                            "When we rely only on general deprivation scores to decide where support is needed, we risk "
-                            "missing the places \u2014 and the people \u2014 where food access is the real problem."
+                            "Deprivation and food vulnerability don't always affect the same places. "
+                            "Two neighbourhoods can look similar on paper yet have completely different everyday realities. "
+                            "This tool brings together the PPFI and IMD to make those differences easier to see.",
+                            style={"lineHeight": "1.7", "marginBottom": "20px"},
                         ),
-                        html.P("We have created this interactive tool to make these different support needs easier to see.",
-                               style={"fontWeight": "600"}),
-                        html.Hr(style={"borderColor": "#e0e4f0", "margin": "20px 0"}),
-                        html.H4("What the tool brings together", style={"marginBottom": "12px", "color": "#1a1a2e"}),
+
+                        # index cards 
+                        html.Hr(style={"borderColor": "#e0e4f0", "margin": "4px 0 16px 0"}),
+                        html.H4("What Each Index Measures", style={"marginBottom": "6px", "color": "#1a1a2e"}),
+                        html.Div(
+                            style={"display": "flex", "gap": "12px", "marginBottom": "16px", "flexWrap": "wrap"},
+                            children=[
+                                html.Div(className="info-card info-card--imd", style={"flex": 1, "minWidth": "220px"}, children=[
+                                    html.H5("Index of Multiple Deprivation (IMD)", style={"margin": "0 0 6px 0", "color": "#1a1a2e"}),
+                                    html.P([html.Strong("Measures: "), "overall neighbourhood disadvantage."], style={"margin": "0 0 6px 0", "fontSize": "13px"}),
+                                    html.P(html.Strong("Domains:"), style={"margin": "0 0 2px 0", "fontSize": "13px"}),
+                                    html.Ul([
+                                        html.Li("Income (22.5%)", style={"fontSize": "12px"}),
+                                        html.Li("Employment (22.5%)", style={"fontSize": "12px"}),
+                                        html.Li("Education (13.5%)", style={"fontSize": "12px"}),
+                                        html.Li("Health (13.5%)", style={"fontSize": "12px"}),
+                                        html.Li("Crime (9.3%)", style={"fontSize": "12px"}),
+                                        html.Li("Barriers to Housing & Services (9.3%)", style={"fontSize": "12px"}),
+                                        html.Li("Living Environment (9.3%)", style={"fontSize": "12px"}),
+                                    ], style={"margin": "0 0 8px 0", "paddingLeft": "18px", "lineHeight": "1.7"}),
+                                    html.A(
+                                        "View full methodology and domain weightings",
+                                        href="https://www.gov.uk/government/statistics/english-indices-of-deprivation-2025/english-indices-of-deprivation-2025-statistical-release",
+                                        target="_blank",
+                                        rel="noopener noreferrer",
+                                        **{"aria-label": "IMD full methodology and domain weightings, opens in a new tab"},
+                                        style={"color": "var(--brand-green)", "fontSize": "12px"},
+                                    ),
+                                ]),
+                                html.Div(className="info-card info-card--ppfi", style={"flex": 1, "minWidth": "220px"}, children=[
+                                    html.H5("Priority Places for Food Index (PPFI)", style={"margin": "0 0 6px 0", "color": "#1a1a2e"}),
+                                    html.P([html.Strong("Measures: "), "access to healthy, affordable food."], style={"margin": "0 0 6px 0", "fontSize": "13px"}),
+                                    html.P(html.Strong("Domains:"), style={"margin": "0 0 2px 0", "fontSize": "13px"}),
+                                    html.Ul([
+                                        html.Li("Proximity to supermarket retail facilities (12.5%)", style={"fontSize": "12px"}),
+                                        html.Li("Accessibility to supermarket retail facilities (12.5%)", style={"fontSize": "12px"}),
+                                        html.Li("Access to online deliveries (12.5%)", style={"fontSize": "12px"}),
+                                        html.Li("Proximity to non-supermarket food provision (12.5%)", style={"fontSize": "12px"}),
+                                        html.Li("Socio-economic barriers (16.7%)", style={"fontSize": "12px"}),
+                                        html.Li("Fuel Poverty (16.7%)", style={"fontSize": "12px"}),
+                                        html.Li("Family food support (16.7%)", style={"fontSize": "12px"}),
+                                    ], style={"margin": "0 0 8px 0", "paddingLeft": "18px", "lineHeight": "1.7"}),
+                                    html.A(
+                                        "View full methodology and domain weightings",
+                                        href="https://leeds-hasp.github.io/data-docs/Priority%20Places%20for%20Food%20Index%20V2.1/2_PPFI_user_guide.html",
+                                        target="_blank",
+                                        rel="noopener noreferrer",
+                                        **{"aria-label": "PPFI full methodology and domain weightings, opens in a new tab"},
+                                        style={"color": "var(--brand-green)", "fontSize": "12px"},
+                                    ),
+                                ]),
+                            ],
+                        ),
+
+
+                        # how to use
+                        html.Hr(style={"borderColor": "#e0e4f0", "margin": "4px 0 16px 0"}),
+                        html.H4("How to use this tool", style={"marginBottom": "10px", "color": "#1a1a2e"}),
+                        html.Div(
+                            className="how-to-accordion",
+                            style={"marginBottom": "20px"},
+                            children=[
+                                html.Details(children=[
+                                    html.Summary("Index map", className="accordion-summary"),
+                                    html.Div(className="accordion-body", children=[
+                                        html.P("Select 'Index map' from the View menu. Choose between a single index view or a differences map using the toggle at the top of the map. Choose PPFI or IMD from the Dataset selector, then a domain or 'Combined' for an overall score across all domains.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                        html.P("Click any Local Authority District (LAD) on the map to drill down to Lower Super Output Area (LSOA) level. Click multiple LADs to compare neighbouring areas. Click a selected LAD again to deselect it.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                    ]),
+                                ]),
+                                html.Details(children=[
+                                    html.Summary("PPFI vs IMD comparison", className="accordion-summary"),
+                                    html.Div(className="accordion-body", children=[
+                                        html.P("View both indices side by side. Use the Compare domains panel to choose a domain for each index independently.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                        html.P("Both maps respond to the same geography and filter controls so you can compare patterns across the same area simultaneously.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                    ]),
+                                ]),
+                                html.Details(children=[
+                                    html.Summary("Differences table", className="accordion-summary"),
+                                    html.Div(className="accordion-body", children=[
+                                        html.P("Ranks neighbourhoods by the gap between their PPFI and IMD scores, flagging areas where the two indices tell different stories.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                        html.P("Filter by local authority, direction of mismatch, or minimum decile gap. Select a row to see a domain-by-domain breakdown in the charts above the table.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                    ]),
+                                ]),
+                                html.Details(children=[
+                                    html.Summary("Difference map", className="accordion-summary"),
+                                    html.Div(className="accordion-body", children=[
+                                        html.P("Select 'Index map' from the View menu, then choose 'Difference map' from the map type toggle.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                        html.P([
+                                            html.Strong("Absolute difference "),
+                                            "is the size of the gap between an area's PPFI decile and IMD decile, regardless of direction. A gap of 5 means the area is in decile 3 on one index and decile 8 on the other. Darker colours indicate a larger gap. Use the Mismatch threshold slider to filter to only the most divergent areas.",
+                                        ], style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                        html.P("This view is useful for spotting areas where the two indices tell fundamentally different stories - for example, areas that are highly deprived overall but have relatively good food access, or vice versa.", style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                    ]),
+                                ]),
+                                html.Details(children=[
+                                    html.Summary("Geography levels", className="accordion-summary"),
+                                    html.Div(className="accordion-body", children=[
+                                        html.P([html.Strong("Two levels of geography are available:",style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"})]),
+                                        html.P([html.Strong("LAD (Local Authority District): "), "local council area level, ranked from 1 (most vulnerable) upwards across England."], style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                        html.P([html.Strong("LSOA (Lower Super Output Area): "), "fine-grained neighbourhood view, deciles 1-10 where 1 = most vulnerable. Click a LAD on the map to drill down, or select LSOA from the Geography panel."], style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                    ]),
+                                ]),
+                            ],
+                        ),
+
+                        # data sources 
+                        html.Hr(style={"borderColor": "#e0e4f0", "margin": "4px 0 16px 0"}),
+                        html.P(html.I("Data sources: PPFI V2.1 (Pontin et al. 2024) - English IMD 2025 (MHCLG) - LSOA 2021 and LAD 2024 boundaries (ONS)."),
+                               style={"fontSize": "12px", "color": "#888", "marginBottom": "16px"}),
+                        html.H4("Suggested citation", style={"marginBottom": "8px", "color": "#1a1a2e"}),
+                        html.Div(
+                            style={
+                                "background": "#f6f7ff",
+                                "border": "1px solid var(--border)",
+                                "borderRadius": "8px",
+                                "padding": "12px 16px",
+                                "fontSize": "13px",
+                                "fontStyle": "italic",
+                                "color": "#444",
+                                "lineHeight": "1.6",
+                            },
+                            children=[
+                                "Sargent, M., Wilkins, E., Jenneson, V., Johnstone, A., Morris, M. and Kininmonth, A.R. 2026. ",
+                                html.Em("PPFI-IMD Explorer"),
+                                ". Data asset provided by the Healthy & Sustainable Places Data Service (ES/Z504336/1). Available at: ",
+                                html.A(
+                                    "www.hasp.ac.uk",
+                                    href="https://hasp.ac.uk",
+                                    target="_blank",
+                                    rel="noopener noreferrer",
+                                    **{"aria-label": "Healthy and Sustainable Places Data Service website, opens in a new tab"},
+                                    style={"color": "var(--brand-green)"},
+                                ),
+                                ". [Accessed: ",
+                                html.Span(
+                                    id="citation_date",
+                                    children="[date accessed]",
+                                    style={"fontStyle": "normal", "color": "#888"},
+                                ),
+                                "].",
+                            ],
+                        ),
                         html.P(
-                            "This tool brings together two different ways of understanding neighbourhood deprivation "
-                            "and need. Each small area receives a score and is ranked from most to least vulnerable, "
-                            "with 1 indicating the highest level of vulnerability."
+                            "Please also cite the underlying data: Pontin, F. et al. (2024) PPFI V2.1; "
+                            "MHCLG (2025) English Indices of Deprivation 2025.",
+                            style={"fontSize": "12px", "color": "#888", "marginTop": "8px"},
                         ),
-                        html.Div(className="info-card info-card--imd", children=[
-                            html.H5("Index of Multiple Deprivation (IMD)", style={"margin": "0 0 6px 0", "color": "#1a1a2e"}),
-                            html.P([html.Strong("What it measures: "), "Overall disadvantage."], style={"margin": "2px 0"}),
-                            html.P([html.Strong("How it works: "),
-                                    "It looks at how everyday factors that affect people\u2019s lives \u2014 such as income, "
-                                    "employment, housing, health, crime, and access to local services \u2014 combine to "
-                                    "create deprivation."], style={"margin": "2px 0"}),
-                        ]),
-                        html.Div(className="info-card info-card--ppfi", children=[
-                            html.H5("Priority Places for Food Index (PPFI)", style={"margin": "0 0 6px 0", "color": "#1a1a2e"}),
-                            html.P([html.Strong("What it measures: "), "Access to healthy, affordable food."], style={"margin": "2px 0"}),
-                            html.P([html.Strong("How it works: "),
-                                    "It considers things like how close shops are, whether the local environment "
-                                    "supports access to healthy and affordable foods, and includes factors like "
-                                    "income and access to a car."], style={"margin": "2px 0"}),
-                        ]),
-                        html.Hr(style={"borderColor": "#e0e4f0", "margin": "20px 0"}),
-                        html.H4("What you can do with this tool", style={"marginBottom": "12px", "color": "#1a1a2e"}),
-                        html.Ul([
-                            html.Li("See areas where deprivation and food vulnerability align or diverge."),
-                            html.Li("Spot places where food risk appears outside the most deprived areas."),
-                            html.Li("Explore patterns across local authorities and across smaller neighbourhoods within those local authorities."),
-                        ], style={"lineHeight": "1.9", "paddingLeft": "20px"}),
-                        html.Hr(style={"borderColor": "#e0e4f0", "margin": "20px 0"}),
-                        html.P(
-                            "The tool highlights areas with both high deprivation and poor food access, but it also "
-                            "reveals places where these patterns differ \u2014 such as low-deprivation areas with high food "
-                            "access risk, or highly deprived areas with good access to shops."
-                        ),
-                        html.P(
-                            "Because users can choose different thresholds for each index (e.g. the top 20% or 40% "
-                            "most \u2018vulnerable\u2019), it becomes easy to compare patterns at different levels of need. "
-                            "This shows that access to healthy, affordable food is shaped by more than deprivation alone. "
-                            "By making these differences easier to see, this tool helps ensure that food-related need "
-                            "is clearer and less likely to be overlooked."
-                        ),
-                        html.P(html.I("Data sources: PPFI V2.1 (Pontin et al. 2024) \u00b7 English IMD 2025 (MHCLG) \u00b7 "
-                                      "LSOA 2021 and LAD 2024 boundaries (ONS)."),
-                               style={"fontSize": "12px", "color": "#888", "marginTop": "24px"}),
                     ],
                 ),
             ],
         ),
     ],
 )
-
-
-
-
-
-
-

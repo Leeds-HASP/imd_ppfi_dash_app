@@ -1,7 +1,8 @@
 # callbacks/mismatch_callbacks.py
 
 from dash.dependencies import Input, Output, State
-from dash import html
+from dash import html, dcc
+import pandas as pd
 import plotly.graph_objects as go
 
 from app import app
@@ -17,7 +18,7 @@ LAD_NAME_COL  = 'lad24nm'
 WARD_NAME_COL = 'ward_name'
 
 
-# ── pure helpers ──────────────────────────────────────────────────────────────
+# helpers
 
 def _bar_colour(decile):
     try:
@@ -68,7 +69,7 @@ def _make_domain_bar(domain_cols, values_dict, composite_decile, composite_label
     fig.update_layout(
         margin=dict(l=10, r=30, t=35, b=20),
         paper_bgcolor='white', plot_bgcolor='white',
-        xaxis=dict(range=[0, 11], dtick=1, title='Decile'),
+        xaxis=dict(range=[0, 10], dtick=1, title='Decile'),
         yaxis=dict(autorange='reversed'),
         showlegend=False, height=300,
     )
@@ -120,9 +121,9 @@ def _narrative(lsoa_name, ppfi_dec, imd_dec, diff, domain_row):
         if concerns:
             paras.append(html.P(
                 f'However, {_join_labels(concerns)} '
-                + ('still scores \u2264 3 on PPFI, indicating a remaining food access concern.'
+                + ('still scores \u2264 3 on PPFI, indicating a remaining food affordability and access challenges.'
                    if len(concerns) == 1 else
-                   'still score \u2264 3 on PPFI, indicating remaining food access concerns.')
+                   'still score \u2264 3 on PPFI, indicating remaining food affordability and access challenges.')
             ))
 
     elif diff < -3:
@@ -147,7 +148,7 @@ def _narrative(lsoa_name, ppfi_dec, imd_dec, diff, domain_row):
     elif abs(diff) <= 1:
         paras.append(html.P(
             f'{lsoa_name} shows close alignment between PPFI (decile {ppfi_int}) and '
-            f'IMD (decile {imd_int}). Both indices tell a consistent story of deprivation '
+            f'IMD (decile {imd_int}). Both indices tell a consistent story of vulnerability'
             'for this area.'
         ))
 
@@ -172,7 +173,9 @@ def _narrative(lsoa_name, ppfi_dec, imd_dec, diff, domain_row):
 
 def _apply_filters(dff, lad, direction, min_gap):
     if lad and LAD_NAME_COL in dff.columns:
-        dff = dff[dff[LAD_NAME_COL] == lad]
+        # lad may be a string (single) or list (multi-select)
+        lads = lad if isinstance(lad, list) else [lad]
+        dff = dff[dff[LAD_NAME_COL].isin(lads)]
     if direction == 'high_imd':
         dff = dff[dff['ppfi_imd_diff'] > 1]
     elif direction == 'high_ppfi':
@@ -184,7 +187,7 @@ def _apply_filters(dff, lad, direction, min_gap):
     return dff
 
 
-# ── callbacks ─────────────────────────────────────────────────────────────────
+#callbacks
 
 @app.callback(
     Output('mismatch_lad_filter', 'options'),
@@ -286,3 +289,35 @@ def update_domain_divergence(lsoa_code):
 
     return {'display': 'block'}, title, narrative, fig_ppfi, fig_imd
 
+
+
+@app.callback(
+    Output("mismatch_download", "data"),
+    Input("mismatch_download_btn", "n_clicks"),
+    State("mismatch_lad_filter", "value"),
+    State("mismatch_direction_filter", "value"),
+    State("mismatch_min_gap", "value"),
+    prevent_initial_call=True,
+)
+def download_mismatch_csv(n_clicks, lad, direction, min_gap):
+    if not n_clicks:
+        from dash.exceptions import PreventUpdate
+        raise PreventUpdate
+
+    direction = direction or "all"
+    min_gap   = min_gap or 0
+    dff = _apply_filters(df_mismatch.copy(), lad, direction, min_gap)
+
+    # build a readable filename based on current filters
+    parts = ["IMD_PPFI_Explorer_mismatch"]
+    if lad:
+        lads = lad if isinstance(lad, list) else [lad]
+        if len(lads) == 1:
+            parts.append(lads[0].replace(" ", "_"))
+        else:
+            parts.append(f"{len(lads)}_local_authorities")
+    if direction != "all":
+        parts.append(direction)
+    filename = "_".join(parts) + ".csv"
+
+    return dcc.send_data_frame(dff.to_csv, filename, index=False)
