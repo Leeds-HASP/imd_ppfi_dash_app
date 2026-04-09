@@ -1,0 +1,73 @@
+# 1. Download the Publish Profile for your Azure Web App (Overview -> Get publish profile).
+# Set SCM Basic Auth Publishing Credentials to "On" in configuration if error: Basic Authentication disabled
+# 2. Create a GitHub Secret named LIVE_AZURE_WEBAPP_PUBLISH_PROFILE with the profile contents.
+# 3. Create a GitHub Personal access token (PAT) with "repo" and "read:packages" permissions. (+SSO HASP if needed)
+#
+# 4. Configure Azure App Service (Configuration -> Application Settings):
+#       DOCKER_REGISTRY_SERVER_URL: "https://ghcr.io"
+#       DOCKER_REGISTRY_SERVER_USERNAME: <Your GitHub Username>
+#       DOCKER_REGISTRY_SERVER_PASSWORD: <Your GitHub PAT>
+#       WEBSITES_PORT: "8050"  
+#
+
+name: Build and deploy a container to an Azure Web App LIVE SITE
+
+env:
+  AZURE_WEBAPP_NAME: imd-ppfi
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase the repo name and username
+        run: echo "REPO=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
+
+      - name: Build and push container image to registry
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ env.REPO }}:${{ github.sha }}
+          file: ./Dockerfile
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'Production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+      - name: Lowercase the repo name and username
+        run: echo "REPO=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
+
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          images: 'ghcr.io/${{ env.REPO }}:${{ github.sha }}'
