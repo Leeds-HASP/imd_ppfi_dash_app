@@ -10,7 +10,7 @@
 #       WEBSITES_PORT: "8050"  
 #
 
-name: Build and deploy a container to an Azure Web App LIVE SITE
+name: Build and deploy a container to an Azure Web App TEST SITE
 
 env:
   AZURE_WEBAPP_NAME: imd-ppfi-test
