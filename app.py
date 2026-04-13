@@ -35,4 +35,3 @@ import callbacks.mismatch_map_callbacks
 # set layout on import
 app.layout = layout
 server = app.server
-sfd
