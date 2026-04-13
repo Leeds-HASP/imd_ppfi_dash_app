@@ -51,7 +51,7 @@ def update_mismatch_map(map_type, threshold):
             "Absolute difference: <b>%{customdata[4]}</b>"
             "<extra></extra>"
         ),
-        marker_line_width=0.3,
+        marker_line_width=0.0,
     )
 
     fig.update_layout(

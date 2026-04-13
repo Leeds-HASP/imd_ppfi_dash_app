@@ -85,12 +85,6 @@ def _hover_narrative(row, geography: str, n_lad: int = 0) -> str:
     lines    = []
 
     if geography == 'lsoa':
-        # LSOA: decile thresholds (1–10)
-        # diff = ppfi_decile − imd_decile
-        # diff > 0 - ppfi_decile larger (lower food priority) + imd_decile smaller (more deprived)
-        #           - IMD shows greater deprivation than PPFI shows food priority
-        # diff < 0 - ppfi_decile smaller (higher food priority) + imd_decile larger (less deprived)
-        #           - PPFI shows greater food vulnerability than IMD shows deprivation
         if diff > 3:
             lines.append(
                 f'IMD decile {imd_int} (1 = most deprived) indicates significantly greater '
@@ -159,12 +153,6 @@ def _hover_narrative(row, geography: str, n_lad: int = 0) -> str:
                 )
 
     else:
-        #LAD: rank scale
-        # diff = ppfi_rank − imd_rank
-        # diff > 0 - ppfi_rank larger (lower food priority) + imd_rank smaller (more deprived)
-        #           - IMD ranks area as more deprived than PPFI ranks it as a food priority
-        # diff < 0 - ppfi_rank smaller (higher food priority) + imd_rank larger (less deprived)
-        #           - PPFI ranks area as higher food priority than IMD ranks it as deprived
         slight_thr   = max(1, int(round(0.10 * n_lad))) if n_lad else 10
         moderate_thr = max(slight_thr + 1, int(round(0.25 * n_lad))) if n_lad else 25
 
@@ -204,21 +192,17 @@ def _hover_narrative(row, geography: str, n_lad: int = 0) -> str:
 def _alignment_band(mismatch_value, geography: str, n_lad: int):
     if mismatch_value is None:
         return ""
-
     try:
         m = int(mismatch_value)
     except Exception:
         return ""
-
     if m > 0:
         direction = "General deprivation (IMD) is higher than food-related vulnerability (PPFI) for this area."
     elif m < 0:
         direction = "Food-related vulnerability (PPFI) is higher than general deprivation (IMD) for this area."
     else:
         return "Alignment: Both indices closely agree for this area."
-
     a = abs(m)
-
     if geography == "lsoa":
         if a == 1:
             return f"Slightly misaligned: {direction}"
@@ -226,10 +210,8 @@ def _alignment_band(mismatch_value, geography: str, n_lad: int):
             return f"Moderately misaligned: {direction}"
         else:
             return f"Strongly misaligned: {direction}"
-
     slight_thr = max(1, int(round(0.10 * n_lad)))
     moderate_thr = max(slight_thr + 1, int(round(0.25 * n_lad)))
-
     if a <= slight_thr:
         return f"Slightly misaligned: {direction}"
     elif a <= moderate_thr:
@@ -238,24 +220,18 @@ def _alignment_band(mismatch_value, geography: str, n_lad: int):
         return f"Strongly misaligned: {direction}"
 
 
-# one boundary around filtered lsoas
 def add_union_outline_layer(fig, gdf_lsoa_subset, width=3):
     if gdf_lsoa_subset is None or getattr(gdf_lsoa_subset, "empty", True):
         return fig
-
     try:
         import plotly.graph_objects as go
         from shapely.ops import unary_union
-        from shapely.geometry import MultiPolygon, Polygon
 
         geoms = gdf_lsoa_subset.geometry.dropna()
         if geoms.empty:
             return fig
 
         union_geom = unary_union([g.buffer(0) for g in geoms])
-
-        # collect exterior rings as lat/lon coordinate lists for Scattermapbox
-        # using NaN separators between rings so plotly draws them as separate lines
         lons, lats = [], []
 
         def add_ring(coords):
@@ -272,78 +248,48 @@ def add_union_outline_layer(fig, gdf_lsoa_subset, width=3):
                 add_ring(poly.exterior.coords)
 
         trace = go.Scattermapbox(
-            lon=lons,
-            lat=lats,
-            mode="lines",
+            lon=lons, lat=lats, mode="lines",
             line=dict(color="#24226f", width=width),
-            hoverinfo="skip",
-            showlegend=False,
-            name="",
+            hoverinfo="skip", showlegend=False, name="",
         )
         fig.add_trace(trace)
         print(f"[add_union_outline_layer] drew outline over {len(geoms)} LSOAs width={width}")
-
     except Exception as e:
         import traceback
         print(f"[add_union_outline_layer] failed: {e}")
         traceback.print_exc()
-
     return fig
 
 
-# build the map
-def make_map(
+def _build_color_and_customdata(
+    gdf,
     geography: str,
     dataset: str,
     domain: str,
-    gdf_lsoa, geojson_lsoa,
-    gdf_lad, geojson_lad,
-    *,
-    compact_hover: bool = False,
-    selected_lads: list | None = None,
-    show_lad_boundaries: bool = False,
-    uirevision: str = "keep",
+    color_col: str,
+    compact_hover: bool,
+    dom_ppfi: str,
+    dom_imd: str,
+    valid_ids: set | None = None,
 ):
-
+    """
+    Returns (z, customdata, hovertemplate).
+    When valid_ids is provided, rows not in valid_ids get z=None (transparent).
+    The gdf passed in must always be the full unfiltered frame so array length
+    stays constant — required for Patch() updates to work correctly.
+    """
     pretty = _pretty_domain(domain)
     metric = "Decile" if geography == "lsoa" else "Rank"
 
-    if geography == "lsoa":
-        gdf = gdf_lsoa.copy()
-        geojson = geojson_lsoa
-        dom_ppfi = PPFI_DOMAINS_LSOA.get(domain)
-        dom_imd  = IMD_DOMAINS_LSOA.get(domain)
-        range_color = (1, 10)
-        colorbar_title = "Decile"
-        name_col = _first_existing_col(
-            gdf, [LSOA_NAME, "LSOA21NM", "LSOA11NM", "lsoa_name", "name"]
-        )
+    if valid_ids is not None:
+        z = gdf[color_col].where(gdf["id"].isin(valid_ids)).tolist()
     else:
-        gdf = gdf_lad.copy()
-        geojson = geojson_lad
-        dom_ppfi = PPFI_DOMAINS_LAD.get(domain)
-        dom_imd  = IMD_DOMAINS_LAD.get(domain)
-
-        full_max = None
-        if dom_ppfi and dom_ppfi in gdf_lad_full.columns:
-            full_max = gdf_lad_full[dom_ppfi].max()
-
-        range_color = (1, full_max) if full_max else None
-        colorbar_title = "Rank"
-        name_col = _first_existing_col(
-            gdf, [LAD_NAME, "LAD24NM", "LAD23NM", "lad_name", "NAME", "name"]
-        )
-
-    color_col = dom_ppfi if dataset == "ppfi" else dom_imd
-    colorscale = _pick_palette(geography, dataset)
-
-    gdf["name"] = _safe_series(gdf, name_col, "")
+        z = gdf[color_col].tolist()
 
     if compact_hover:
-        # compact hover (compare maps)
+        gdf = gdf.copy()
         gdf["ppfi_val"] = _safe(gdf, dom_ppfi)
         gdf["imd_val"]  = _safe(gdf, dom_imd)
-
         customdata = gdf[["name", "ppfi_val", "imd_val"]].values
 
         if domain == "combined":
@@ -354,22 +300,22 @@ def make_map(
                 "IMD: %{customdata[2]}<br>"
                 "<extra></extra>"
             )
+        elif dataset == "ppfi":
+            hovertemplate = (
+                "<b>%{customdata[0]}</b><br>"
+                f"{pretty} {metric}<br>"
+                "PPFI: %{customdata[1]}<br>"
+                "<extra></extra>"
+            )
         else:
-            if dataset == "ppfi":
-                hovertemplate = (
-                    "<b>%{customdata[0]}</b><br>"
-                    f"{pretty} {metric}<br>"
-                    "PPFI: %{customdata[1]}<br>"
-                    "<extra></extra>"
-                )
-            else:
-                hovertemplate = (
-                    "<b>%{customdata[0]}</b><br>"
-                    f"{pretty} {metric}<br>"
-                    "IMD: %{customdata[2]}<br>"
-                    "<extra></extra>"
-                )
+            hovertemplate = (
+                "<b>%{customdata[0]}</b><br>"
+                f"{pretty} {metric}<br>"
+                "IMD: %{customdata[2]}<br>"
+                "<extra></extra>"
+            )
     else:
+        gdf = gdf.copy()
         if geography == "lsoa":
             ppfi_comb = _safe(gdf, "pp_dec_combined")
             imd_comb  = _safe(gdf, "imd_decile")
@@ -379,10 +325,7 @@ def make_map(
 
         gdf["ppfi_combined"] = ppfi_comb
         gdf["imd_combined"]  = imd_comb
-        if ppfi_comb is not None and imd_comb is not None:
-            gdf["diff"] = gdf["ppfi_combined"] - gdf["imd_combined"]
-        else:
-            gdf["diff"] = None
+        gdf["diff"] = (gdf["ppfi_combined"] - gdf["imd_combined"]) if (ppfi_comb is not None and imd_comb is not None) else None
 
         if domain != "combined" and color_col in gdf.columns:
             gdf["domain_line"] = f"{pretty} {metric} ({dataset.upper()}): " + gdf[color_col].astype(str)
@@ -392,9 +335,6 @@ def make_map(
         gdf["narrative"] = gdf.apply(
             lambda r: _hover_narrative(r.to_dict(), geography, len(gdf_lad_full)), axis=1
         )
-
-        # include lad_cd at index 6 so the drilldown callback can toggle LAD
-        # selection even when the user clicks an LSOA polygon
         gdf["_lad_cd"] = _safe_series(gdf, "lad_cd", "")
 
         customdata = gdf[[
@@ -417,6 +357,86 @@ def make_map(
             "<extra></extra>"
         )
 
+    return z, customdata, hovertemplate
+
+
+def get_patch_data(
+    geography: str,
+    dataset: str,
+    domain: str,
+    gdf_full,
+    valid_ids: set | None,
+    compact_hover: bool = False,
+):
+    """
+    Returns (z, customdata, hovertemplate) for a Patch() update.
+    Uses the full unfiltered gdf; valid_ids controls which rows are visible.
+    """
+    if geography == "lsoa":
+        dom_ppfi = PPFI_DOMAINS_LSOA.get(domain)
+        dom_imd  = IMD_DOMAINS_LSOA.get(domain)
+        name_candidates = [LSOA_NAME, "LSOA21NM", "lsoa_name", "name"]
+    else:
+        dom_ppfi = PPFI_DOMAINS_LAD.get(domain)
+        dom_imd  = IMD_DOMAINS_LAD.get(domain)
+        name_candidates = [LAD_NAME, "LAD24NM", "LAD23NM", "lad_name", "NAME", "name"]
+
+    color_col = dom_ppfi if dataset == "ppfi" else dom_imd
+    gdf_full = gdf_full.copy()
+    name_col = _first_existing_col(gdf_full, name_candidates)
+    gdf_full["name"] = _safe_series(gdf_full, name_col, "")
+
+    return _build_color_and_customdata(
+        gdf_full, geography, dataset, domain, color_col,
+        compact_hover, dom_ppfi, dom_imd, valid_ids,
+    )
+
+
+# build the map — unchanged except customdata/z now delegated to _build_color_and_customdata
+def make_map(
+    geography: str,
+    dataset: str,
+    domain: str,
+    gdf_lsoa, geojson_lsoa,
+    gdf_lad, geojson_lad,
+    *,
+    compact_hover: bool = False,
+    selected_lads: list | None = None,
+    show_lad_boundaries: bool = False,
+    uirevision: str = "keep",
+):
+    pretty = _pretty_domain(domain)
+    metric = "Decile" if geography == "lsoa" else "Rank"
+
+    if geography == "lsoa":
+        gdf = gdf_lsoa.copy()
+        geojson = geojson_lsoa
+        dom_ppfi = PPFI_DOMAINS_LSOA.get(domain)
+        dom_imd  = IMD_DOMAINS_LSOA.get(domain)
+        range_color = (1, 10)
+        colorbar_title = "Decile"
+        name_col = _first_existing_col(gdf, [LSOA_NAME, "LSOA21NM", "LSOA11NM", "lsoa_name", "name"])
+    else:
+        gdf = gdf_lad.copy()
+        geojson = geojson_lad
+        dom_ppfi = PPFI_DOMAINS_LAD.get(domain)
+        dom_imd  = IMD_DOMAINS_LAD.get(domain)
+        full_max = None
+        if dom_ppfi and dom_ppfi in gdf_lad_full.columns:
+            full_max = gdf_lad_full[dom_ppfi].max()
+        range_color = (1, full_max) if full_max else None
+        colorbar_title = "Rank"
+        name_col = _first_existing_col(gdf, [LAD_NAME, "LAD24NM", "LAD23NM", "lad_name", "NAME", "name"])
+
+    color_col = dom_ppfi if dataset == "ppfi" else dom_imd
+    colorscale = _pick_palette(geography, dataset)
+    gdf["name"] = _safe_series(gdf, name_col, "")
+
+    z, customdata, hovertemplate = _build_color_and_customdata(
+        gdf, geography, dataset, domain, color_col,
+        compact_hover, dom_ppfi, dom_imd, valid_ids=None,
+    )
+
     fig = px.choropleth_mapbox(
         gdf,
         geojson=geojson,
@@ -436,19 +456,11 @@ def make_map(
     )
 
     fig.update_layout(
-        mapbox=dict(
-            style="carto-positron",
-            zoom=5.3,
-            center={"lat": 53.7, "lon": -1.5},
-        ),
+        mapbox=dict(style="carto-positron", zoom=5.3, center={"lat": 53.7, "lon": -1.5}),
         margin=dict(l=0, r=0, t=40, b=0),
         uirevision=uirevision,
         clickmode="event",
-        coloraxis_colorbar=dict(
-            title=colorbar_title,
-            thickness=12,
-            len=0.5,
-        ),
+        coloraxis_colorbar=dict(title=colorbar_title, thickness=12, len=0.5),
         title={
             "text": (
                 f"{dataset.upper()} – {pretty} ({geography.upper()})<br>"
@@ -467,7 +479,6 @@ def make_map(
             namelength=0,
             align="left",
         ),
-        #keep tooltip in topleft of map so it never overlaps the cursor location
         hovermode="closest",
     )
 
@@ -480,11 +491,8 @@ def make_map(
         selected_ids = {s["lad_id"] for s in selected_lads if s.get("lad_id")}
 
         if drilled:
-            # Use geojson_lad directly — no dissolve needed, avoids geometry artefacts
             lad_bg = gdf_lad_full.copy()
-            lad_name_col = _first_existing_col(
-                lad_bg, [LAD_NAME, "LAD24NM", "LAD23NM", "lad_name", "NAME", "name"]
-            )
+            lad_name_col = _first_existing_col(lad_bg, [LAD_NAME, "LAD24NM", "LAD23NM", "lad_name", "NAME", "name"])
             lad_bg["name"] = _safe_series(lad_bg, lad_name_col, "")
             lad_bg["_sel"] = lad_bg["id"].isin(selected_ids).astype(int)
 
@@ -494,10 +502,7 @@ def make_map(
                 locations=lad_bg["id"],
                 z=lad_bg["_sel"],
                 featureidkey="properties.id",
-                colorscale=[
-                    [0, "rgba(160,160,180,0.08)"],
-                    [1, "rgba(100,100,140,0.18)"],
-                ],
+                colorscale=[[0, "rgba(160,160,180,0.08)"], [1, "rgba(100,100,140,0.18)"]],
                 showscale=False,
                 marker_line_color="rgba(0,0,0,0)",
                 marker_line_width=0,
@@ -509,29 +514,19 @@ def make_map(
             fig.add_trace(lad_trace)
             fig.data = (fig.data[-1],) + fig.data[:-1]
 
-            # draw all LAD outlines, misalignment at selected edge is masked by union outline above
             lad_outline_layer = {
-                "sourcetype": "geojson",
-                "source": geojson_lad,
-                "type": "line",
-                "color": "#555577",
-                "line": {"width": 0.8},
-                "opacity": 0.35,
-                "below": "",
+                "sourcetype": "geojson", "source": geojson_lad,
+                "type": "line", "color": "#555577",
+                "line": {"width": 0.8}, "opacity": 0.35, "below": "",
             }
             existing = list(getattr(fig.layout.mapbox, "layers", []) or [])
             fig.update_layout(mapbox_layers=existing + [lad_outline_layer])
 
         else:
-            #simple LAD outlines when not drilled
             lad_layer = {
-                "sourcetype": "geojson",
-                "source": geojson_lad,
-                "type": "line",
-                "color": "#1a1a2e",
-                "line": {"width": 0.8},
-                "opacity": 0.45,
-                "below": "",
+                "sourcetype": "geojson", "source": geojson_lad,
+                "type": "line", "color": "#1a1a2e",
+                "line": {"width": 0.8}, "opacity": 0.45, "below": "",
             }
             existing = list(getattr(fig.layout.mapbox, "layers", []) or [])
             fig.update_layout(mapbox_layers=existing + [lad_layer])

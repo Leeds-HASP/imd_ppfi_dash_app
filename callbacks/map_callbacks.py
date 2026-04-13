@@ -1,15 +1,16 @@
 # callbacks/map_callbacks.py
 import math
 import dash
-from dash import no_update, html
+from dash import no_update, html, Patch
 from dash.exceptions import PreventUpdate
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 
 from app import app
 
-from utils.data import gdf_lsoa, geojson_lsoa, gdf_lad, geojson_lad
+from utils.data import gdf_lsoa, geojson_lsoa, gdf_lad, geojson_lad, gdf_lsoa_full, gdf_lad_full
 from utils.figures import (
     make_map,
+    get_patch_data,
     get_domains_for_single,
     get_domains_for_compare,
 )
@@ -96,10 +97,9 @@ def _extract_lad_from_click(clickData, geography='lad'):
 
     if geography == 'lsoa' and isinstance(cd, (list, tuple)) and len(cd) > 6:
         lad_id = cd[6] or None
-        lad_name = None  # we don't store LAD name in LSOA customdata; callback will look it up
+        lad_name = None
         return lad_id, lad_name
 
-    #click on LAD choropleth trace (initial drilldown or background trace)
     lad_id = pt.get('location') or pt.get('id')
     lad_name = None
     if isinstance(cd, (list, tuple)) and len(cd) > 0:
@@ -118,8 +118,23 @@ def _make_lad_label(selected_lads):
     return f'{names[0]}, {names[1]} + {len(names) - 2} more'
 
 
-# drilldown: clicking a LAD toggles it in/out of the selected list
-from dash.dependencies import State
+def _normalise_store(store):
+    if not store:
+        return []
+    if isinstance(store, dict):
+        return [store] if store.get('lad_id') else []
+    return store
+
+
+def _choropleth_trace_index(selected_lads):
+    """
+    When drilled into LADs the lad_trace is prepended to data[0],
+    pushing the choropleth to data[1]. Otherwise it's data[0].
+    """
+    return 1 if selected_lads else 0
+
+
+# ── drilldown ────────────────────────────────────────────────────────────────
 
 @app.callback(
     Output('selected_lad_store', 'data'),
@@ -135,11 +150,9 @@ from dash.dependencies import State
 def drilldown_lad_to_lsoa(click_single, click_left, click_right, geography, view, current_store):
     triggered = (
         dash.callback_context.triggered[0]['prop_id'].split('.')[0]
-        if dash.callback_context.triggered
-        else None
+        if dash.callback_context.triggered else None
     )
 
-    #switching back to LAD view clears selection
     if triggered == 'geography_selector' and geography == 'lad':
         return [], no_update
 
@@ -157,13 +170,8 @@ def drilldown_lad_to_lsoa(click_single, click_left, click_right, geography, view
     if not lad_id:
         raise PreventUpdate
 
-    # current_store is a list of dicts; normalise in case it's legacy format or None
-    if not current_store:
-        current_store = []
-    elif isinstance(current_store, dict):
-        current_store = [current_store] if current_store.get('lad_id') else []
+    current_store = _normalise_store(current_store)
 
-    #if lad_name is missing (click came from LSOA polygon), look it up from gdf_lad
     if not lad_name:
         from utils.constants import LAD_NAME
         from utils.data import gdf_lad as _gdf_lad
@@ -177,7 +185,6 @@ def drilldown_lad_to_lsoa(click_single, click_left, click_right, geography, view
     existing_ids = [s['lad_id'] for s in current_store]
 
     if lad_id in existing_ids:
-        # clicking an already-selected LAD (or any LSOA within it) deselects it
         new_store = [s for s in current_store if s['lad_id'] != lad_id]
     else:
         new_store = current_store + [{'lad_id': lad_id, 'lad_name': lad_name}]
@@ -187,7 +194,8 @@ def drilldown_lad_to_lsoa(click_single, click_left, click_right, geography, view
     return new_store, 'lsoa'
 
 
-# domain opts
+# ── domain options ────────────────────────────────────────────────────────────
+
 @app.callback(
     Output('domain_selector', 'options'),
     Output('domain_selector', 'value'),
@@ -204,52 +212,45 @@ def update_domain_options(view, geo, dataset, current_domain):
     return opts, current_domain
 
 
-# single map
+# ── single map: full rebuild ──────────────────────────────────────────────────
+# Triggers: geography change, drilldown, view change — geometry or traces change
+
 @app.callback(
     Output('map_single', 'figure'),
     Input('geography_selector', 'value'),
-    Input('dataset_selector', 'value'),
-    Input('domain_selector', 'value'),
-    Input('view_selector', 'value'),
-    Input('lsoa_decile_filter', 'value'),
-    Input('lad_rank_filter', 'value'),
     Input('selected_lad_store', 'data'),
+    Input('view_selector', 'value'),
+    State('dataset_selector', 'value'),
+    State('domain_selector', 'value'),
+    State('lsoa_decile_filter', 'value'),
+    State('lad_rank_filter', 'value'),
 )
-def update_map(geography, dataset, domain, view, lsoa_decile, lad_percent, selected_lads):
+def rebuild_map_single(geography, selected_lads, view, dataset, domain, lsoa_decile, lad_percent):
     if view != 'map':
         raise PreventUpdate
 
-    # normalise store
-    if not selected_lads:
-        selected_lads = []
-    elif isinstance(selected_lads, dict):
-        selected_lads = [selected_lads] if selected_lads.get('lad_id') else []
+    selected_lads = _normalise_store(selected_lads)
 
-    filtered_lsoa = gdf_lsoa.copy()
-    filtered_lad = gdf_lad.copy()
+    filtered_lsoa = gdf_lsoa
+    filtered_lad = gdf_lad
 
     if geography == 'lsoa':
-        filtered_lsoa = _filter_lsoa_by_deciles(filtered_lsoa, dataset, domain, lsoa_decile)
+        filtered_lsoa = _filter_lsoa_by_deciles(gdf_lsoa, dataset, domain, lsoa_decile)
         filtered_lsoa = _filter_lsoa_to_selected_lads(filtered_lsoa, selected_lads)
-
     if geography == 'lad':
-        filtered_lad = _filter_lad_by_percent(filtered_lad, dataset, domain, lad_percent)
+        filtered_lad = _filter_lad_by_percent(gdf_lad, dataset, domain, lad_percent)
 
     lad_rev = '_'.join(sorted(s['lad_id'] for s in selected_lads)) or 'none'
     fig = make_map(
-        geography,
-        dataset,
-        domain,
-        filtered_lsoa,
-        geojson_lsoa,
-        filtered_lad,
-        geojson_lad,
+        geography, dataset, domain,
+        filtered_lsoa, geojson_lsoa,
+        filtered_lad, geojson_lad,
         selected_lads=selected_lads,
         show_lad_boundaries=(geography == 'lsoa'),
         uirevision=f"{geography}_{lad_rev}",
     )
 
-    if geography == 'lsoa' and selected_lads and hasattr(filtered_lsoa, 'empty') and not filtered_lsoa.empty:
+    if geography == 'lsoa' and selected_lads and not filtered_lsoa.empty:
         try:
             minx, miny, maxx, maxy = filtered_lsoa.total_bounds
             center, zoom = _center_zoom_from_bounds((minx, miny, maxx, maxy))
@@ -265,77 +266,95 @@ def update_map(geography, dataset, domain, view, lsoa_decile, lad_percent, selec
     return fig
 
 
-# compare maps
+# ── single map: colour/filter patch ──────────────────────────────────────────
+# Triggers: dataset, domain, filter changes only — geometry stays, only z + customdata update
+
+@app.callback(
+    Output('map_single', 'figure', allow_duplicate=True),
+    Input('dataset_selector', 'value'),
+    Input('domain_selector', 'value'),
+    Input('lsoa_decile_filter', 'value'),
+    Input('lad_rank_filter', 'value'),
+    State('geography_selector', 'value'),
+    State('selected_lad_store', 'data'),
+    State('view_selector', 'value'),
+    prevent_initial_call=True,
+)
+def patch_map_single(dataset, domain, lsoa_decile, lad_percent, geography, selected_lads, view):
+    if view != 'map':
+        raise PreventUpdate
+
+    selected_lads = _normalise_store(selected_lads)
+
+    if geography == 'lsoa':
+        filtered = _filter_lsoa_by_deciles(gdf_lsoa_full, dataset, domain, lsoa_decile)
+        filtered = _filter_lsoa_to_selected_lads(filtered, selected_lads)
+        valid_ids = set(filtered['id'])
+        z, customdata, hovertemplate = get_patch_data(
+            geography, dataset, domain, gdf_lsoa_full, valid_ids
+        )
+    else:
+        filtered = _filter_lad_by_percent(gdf_lad_full, dataset, domain, lad_percent)
+        valid_ids = set(filtered['id'])
+        z, customdata, hovertemplate = get_patch_data(
+            geography, dataset, domain, gdf_lad_full, valid_ids
+        )
+
+    trace_idx = _choropleth_trace_index(selected_lads)
+    pretty = domain.replace("_", " ").title()
+
+    patched = Patch()
+    patched['data'][trace_idx]['z'] = z
+    patched['data'][trace_idx]['customdata'] = customdata.tolist()
+    patched['data'][trace_idx]['hovertemplate'] = hovertemplate
+    patched['layout']['title'] = _map_title(f'{dataset.upper()} – {pretty} ({geography.upper()})', geography)
+
+    return patched
+
+
+# ── compare maps: full rebuild ────────────────────────────────────────────────
+
 @app.callback(
     Output('map_compare_left', 'figure'),
     Output('map_compare_right', 'figure'),
     Input('geography_selector', 'value'),
-    Input('domain_selector_ppfi', 'value'),
-    Input('domain_selector_imd', 'value'),
-    Input('lsoa_decile_filter', 'value'),
-    Input('lad_rank_filter', 'value'),
-    Input('view_selector', 'value'),
     Input('selected_lad_store', 'data'),
+    Input('view_selector', 'value'),
+    State('domain_selector_ppfi', 'value'),
+    State('domain_selector_imd', 'value'),
+    State('lsoa_decile_filter', 'value'),
+    State('lad_rank_filter', 'value'),
 )
-def update_compare_maps(geography, domain_ppfi, domain_imd, lsoa_decile, lad_percent, view, selected_lads):
-    if not selected_lads:
-        selected_lads = []
-    elif isinstance(selected_lads, dict):
-        selected_lads = [selected_lads] if selected_lads.get('lad_id') else []
-
-    lsoa_base = gdf_lsoa.copy()
-    lad_base = gdf_lad.copy()
-
-    if geography == 'lsoa':
-        filtered_lsoa_left = _filter_lsoa_by_deciles(lsoa_base, 'ppfi', domain_ppfi, lsoa_decile)
-        filtered_lsoa_right = _filter_lsoa_by_deciles(lsoa_base, 'imd', domain_imd, lsoa_decile)
-
-        filtered_lsoa_left = _filter_lsoa_to_selected_lads(filtered_lsoa_left, selected_lads)
-        filtered_lsoa_right = _filter_lsoa_to_selected_lads(filtered_lsoa_right, selected_lads)
-
-        filtered_lad_left = lad_base
-        filtered_lad_right = lad_base
-    else:
-        filtered_lsoa_left = lsoa_base
-        filtered_lsoa_right = lsoa_base
-
-        filtered_lad_left = _filter_lad_by_percent(lad_base, 'ppfi', domain_ppfi, lad_percent)
-        filtered_lad_right = _filter_lad_by_percent(lad_base, 'imd', domain_imd, lad_percent)
-
+def rebuild_compare_maps(geography, selected_lads, view, domain_ppfi, domain_imd, lsoa_decile, lad_percent):
+    selected_lads = _normalise_store(selected_lads)
     lad_rev = '_'.join(sorted(s['lad_id'] for s in selected_lads)) or 'none'
     compare_rev = f"compare_{geography}_{lad_rev}"
 
-    left_fig = make_map(
-        geography,
-        'ppfi',
-        domain_ppfi,
-        filtered_lsoa_left,
-        geojson_lsoa,
-        filtered_lad_left,
-        geojson_lad,
-        compact_hover=True,
-        selected_lads=selected_lads,
-        show_lad_boundaries=(geography == 'lsoa'),
-        uirevision=compare_rev,
-    )
+    if geography == 'lsoa':
+        fl_left  = _filter_lsoa_to_selected_lads(_filter_lsoa_by_deciles(gdf_lsoa, 'ppfi', domain_ppfi, lsoa_decile), selected_lads)
+        fl_right = _filter_lsoa_to_selected_lads(_filter_lsoa_by_deciles(gdf_lsoa, 'imd',  domain_imd,  lsoa_decile), selected_lads)
+        fl_lad_left = fl_lad_right = gdf_lad
+    else:
+        fl_left = fl_right = gdf_lsoa
+        fl_lad_left  = _filter_lad_by_percent(gdf_lad, 'ppfi', domain_ppfi, lad_percent)
+        fl_lad_right = _filter_lad_by_percent(gdf_lad, 'imd',  domain_imd,  lad_percent)
 
+    left_fig = make_map(
+        geography, 'ppfi', domain_ppfi,
+        fl_left, geojson_lsoa, fl_lad_left, geojson_lad,
+        compact_hover=True, selected_lads=selected_lads,
+        show_lad_boundaries=(geography == 'lsoa'), uirevision=compare_rev,
+    )
     right_fig = make_map(
-        geography,
-        'imd',
-        domain_imd,
-        filtered_lsoa_right,
-        geojson_lsoa,
-        filtered_lad_right,
-        geojson_lad,
-        compact_hover=True,
-        selected_lads=selected_lads,
-        show_lad_boundaries=(geography == 'lsoa'),
-        uirevision=compare_rev,
+        geography, 'imd', domain_imd,
+        fl_right, geojson_lsoa, fl_lad_right, geojson_lad,
+        compact_hover=True, selected_lads=selected_lads,
+        show_lad_boundaries=(geography == 'lsoa'), uirevision=compare_rev,
     )
 
     if geography == 'lsoa' and selected_lads:
-        bounds_gdf = filtered_lsoa_left if hasattr(filtered_lsoa_left, 'empty') and not filtered_lsoa_left.empty else filtered_lsoa_right
-        if bounds_gdf is not None and hasattr(bounds_gdf, 'empty') and not bounds_gdf.empty:
+        bounds_gdf = fl_left if not fl_left.empty else fl_right
+        if not bounds_gdf.empty:
             try:
                 minx, miny, maxx, maxy = bounds_gdf.total_bounds
                 center, zoom = _center_zoom_from_bounds((minx, miny, maxx, maxy))
@@ -344,22 +363,75 @@ def update_compare_maps(geography, domain_ppfi, domain_imd, lsoa_decile, lad_per
             except Exception:
                 pass
 
-    pretty_ppfi = domain_ppfi.replace("_"," ").title()
-    pretty_imd  = domain_imd.replace("_"," ").title()
+    pretty_ppfi = domain_ppfi.replace("_", " ").title()
+    pretty_imd  = domain_imd.replace("_", " ").title()
     geo_label   = geography.upper()
 
-    if not selected_lads:
+    if selected_lads:
+        lad_label = _make_lad_label(selected_lads)
+        left_fig.update_layout(title=_map_title(f"PPFI – {pretty_ppfi} ({geo_label}) within {lad_label}", geography))
+        right_fig.update_layout(title=_map_title(f"IMD – {pretty_imd} ({geo_label}) within {lad_label}", geography))
+    else:
         left_fig.update_layout(title=_map_title(f"PPFI – {pretty_ppfi} ({geo_label})", geography))
         right_fig.update_layout(title=_map_title(f"IMD – {pretty_imd} ({geo_label})", geography))
-        return left_fig, right_fig
 
-    lad_label = _make_lad_label(selected_lads)
-    left_fig.update_layout(title=_map_title(f"PPFI – {pretty_ppfi} ({geo_label}) within {lad_label}", geography))
-    right_fig.update_layout(title=_map_title(f"IMD – {pretty_imd} ({geo_label}) within {lad_label}", geography))
     return left_fig, right_fig
 
 
-#info bar. single map:
+# ── compare maps: colour/filter patch ────────────────────────────────────────
+
+@app.callback(
+    Output('map_compare_left', 'figure', allow_duplicate=True),
+    Output('map_compare_right', 'figure', allow_duplicate=True),
+    Input('domain_selector_ppfi', 'value'),
+    Input('domain_selector_imd', 'value'),
+    Input('lsoa_decile_filter', 'value'),
+    Input('lad_rank_filter', 'value'),
+    State('geography_selector', 'value'),
+    State('selected_lad_store', 'data'),
+    State('view_selector', 'value'),
+    prevent_initial_call=True,
+)
+def patch_compare_maps(domain_ppfi, domain_imd, lsoa_decile, lad_percent, geography, selected_lads, view):
+    selected_lads = _normalise_store(selected_lads)
+    trace_idx = _choropleth_trace_index(selected_lads)
+
+    if geography == 'lsoa':
+        fl_left  = _filter_lsoa_to_selected_lads(_filter_lsoa_by_deciles(gdf_lsoa_full, 'ppfi', domain_ppfi, lsoa_decile), selected_lads)
+        fl_right = _filter_lsoa_to_selected_lads(_filter_lsoa_by_deciles(gdf_lsoa_full, 'imd',  domain_imd,  lsoa_decile), selected_lads)
+        valid_left  = set(fl_left['id'])
+        valid_right = set(fl_right['id'])
+        z_left,  cd_left,  ht_left  = get_patch_data(geography, 'ppfi', domain_ppfi, gdf_lsoa_full, valid_left,  compact_hover=True)
+        z_right, cd_right, ht_right = get_patch_data(geography, 'imd',  domain_imd,  gdf_lsoa_full, valid_right, compact_hover=True)
+    else:
+        fl_left  = _filter_lad_by_percent(gdf_lad_full, 'ppfi', domain_ppfi, lad_percent)
+        fl_right = _filter_lad_by_percent(gdf_lad_full, 'imd',  domain_imd,  lad_percent)
+        valid_left  = set(fl_left['id'])
+        valid_right = set(fl_right['id'])
+        z_left,  cd_left,  ht_left  = get_patch_data(geography, 'ppfi', domain_ppfi, gdf_lad_full, valid_left,  compact_hover=True)
+        z_right, cd_right, ht_right = get_patch_data(geography, 'imd',  domain_imd,  gdf_lad_full, valid_right, compact_hover=True)
+
+    pretty_ppfi = domain_ppfi.replace("_", " ").title()
+    pretty_imd  = domain_imd.replace("_", " ").title()
+    geo_label   = geography.upper()
+
+    left_patch = Patch()
+    left_patch['data'][trace_idx]['z'] = z_left
+    left_patch['data'][trace_idx]['customdata'] = cd_left.tolist()
+    left_patch['data'][trace_idx]['hovertemplate'] = ht_left
+    left_patch['layout']['title'] = _map_title(f"PPFI – {pretty_ppfi} ({geo_label})", geography)
+
+    right_patch = Patch()
+    right_patch['data'][trace_idx]['z'] = z_right
+    right_patch['data'][trace_idx]['customdata'] = cd_right.tolist()
+    right_patch['data'][trace_idx]['hovertemplate'] = ht_right
+    right_patch['layout']['title'] = _map_title(f"IMD – {pretty_imd} ({geo_label})", geography)
+
+    return left_patch, right_patch
+
+
+# ── info bars ─────────────────────────────────────────────────────────────────
+
 @app.callback(
     dash.dependencies.Output("map_info_bar_text", "style"),
     dash.dependencies.Output("map_info_bar_text", "children"),
@@ -389,7 +461,7 @@ def update_single_info_bar(hover):
         return {"color": "#555", "fontStyle": "normal"}, name
     return blank_style, blank_text
 
-#info bar. compare maps
+
 @app.callback(
     dash.dependencies.Output("compare_info_bar_text", "style"),
     dash.dependencies.Output("compare_info_bar_text", "children"),
