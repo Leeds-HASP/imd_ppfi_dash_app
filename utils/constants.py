@@ -46,9 +46,9 @@ PPFI_DOMAINS_LSOA = {
     'supermarket proximity': 'pp_dec_domain_supermarket_proximity',
     'supermarket accessibility': 'pp_dec_domain_supermarket_accessibility',
     'ecommerce access': 'pp_dec_domain_ecommerce_access',
-    'socio-demographic': 'pp_dec_domain_socio_demographic',
+    'socio-economic barriers': 'pp_dec_domain_socio_demographic',
     'non-supermarket proximity': 'pp_dec_domain_nonsupermarket_proximity',
-    'food for families': 'pp_dec_domain_food_for_families',
+    'need for family food support': 'pp_dec_domain_food_for_families',
     'fuel poverty': 'pp_dec_domain_fuel_poverty',
 }
 
@@ -68,9 +68,9 @@ PPFI_DOMAINS_LAD = {
     'supermarket proximity': 'domain_supermarket_proximity',
     'supermarket accessibility': 'domain_supermarket_accessibility',
     'ecommerce access': 'domain_ecommerce_access',
-    'socio-demographic': 'domain_socio_demographic',
+    'socio-economic barriers': 'domain_socio_demographic',
     'non-supermarket proximity': 'domain_nonsupermarket_proximity',
-    'food for families': 'domain_food_for_families',
+    'need for family food support': 'domain_food_for_families',
     'fuel poverty': 'domain_fuel_poverty',
 }
 
@@ -90,7 +90,7 @@ PPFI_LSOA_DOMAIN_LABELS = [
     ("pp_dec_domain_supermarket_proximity",    "Proximity to supermarket retail facilities"),
     ("pp_dec_domain_supermarket_accessibility","Accessibility to supermarket retail facilities"),
     ("pp_dec_domain_ecommerce_access",         "Access to online deliveries"),
-    ("pp_dec_domain_socio_demographic",        "Socio-demographic"),
+    ("pp_dec_domain_socio_demographic",        "Socio-economic barriers"),
     ("pp_dec_domain_nonsupermarket_proximity", "Proximity to non-supermarket food provision"),
     ("pp_dec_domain_food_for_families",        "Need for family food support"),
     ("pp_dec_domain_fuel_poverty",             "Fuel poverty"),

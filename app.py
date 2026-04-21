@@ -24,6 +24,7 @@ app = Dash(
     </body>
 </html>''',
 )
+app.title = "PPFI-IMD Mismatch Explorer"
 
 # register callbacks
 import callbacks.navigation_callbacks
