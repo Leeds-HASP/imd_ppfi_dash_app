@@ -215,7 +215,7 @@ def mismatch_table(view, lad, direction, min_gap):
         return [], []
     direction = direction or 'all'
     min_gap   = min_gap or 0
-    dff = _apply_filters(df_mismatch.copy(), lad, direction, min_gap)
+    dff = _apply_filters(df_mismatch, lad, direction, min_gap)
 
     cols = [
         {'name': 'LSOA code',       'id': LSOA_CODE_COL},
@@ -306,7 +306,7 @@ def download_mismatch_csv(n_clicks, lad, direction, min_gap):
 
     direction = direction or "all"
     min_gap   = min_gap or 0
-    dff = _apply_filters(df_mismatch.copy(), lad, direction, min_gap)
+    dff = _apply_filters(df_mismatch, lad, direction, min_gap)
 
     # build a readable filename based on current filters
     parts = ["IMD_PPFI_Explorer_mismatch"]

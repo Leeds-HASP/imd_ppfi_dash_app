@@ -2,8 +2,6 @@
 import geopandas as gpd
 from shapely.geometry import mapping
 
-import plotly.express as px
-
 from utils.constants import (
     PPFI_DOMAINS_LSOA, IMD_DOMAINS_LSOA,
     PPFI_DOMAINS_LAD,  IMD_DOMAINS_LAD,
@@ -37,10 +35,10 @@ def get_domains_for_compare(geo: str):
 
 
 def _pick_palette(geo: str, dataset: str):
-    if geo == "lsoa":
-        return PPFI_LSOA_PALETTE if dataset == "ppfi" else IMD_LSOA_PALETTE
-    return PPFI_LAD_PALETTE if dataset == "ppfi" else IMD_LAD_PALETTE
-
+    # Use the exact custom hex arrays for both LSOA and LAD views
+    if dataset == "ppfi":
+        return PPFI_LSOA_PALETTE
+    return IMD_LSOA_PALETTE
 
 def _pretty_domain(domain_key: str):
     return domain_key.replace("_", " ").strip().title()
@@ -85,12 +83,6 @@ def _hover_narrative(row, geography: str, n_lad: int = 0) -> str:
     lines    = []
 
     if geography == 'lsoa':
-        # LSOA: decile thresholds (1–10)
-        # diff = ppfi_decile − imd_decile
-        # diff > 0 - ppfi_decile larger (lower food priority) + imd_decile smaller (more deprived)
-        #           - IMD shows greater deprivation than PPFI shows food priority
-        # diff < 0 - ppfi_decile smaller (higher food priority) + imd_decile larger (less deprived)
-        #           - PPFI shows greater food vulnerability than IMD shows deprivation
         if diff > 3:
             lines.append(
                 f'IMD decile {imd_int} (1 = most deprived) indicates significantly greater '
@@ -159,12 +151,6 @@ def _hover_narrative(row, geography: str, n_lad: int = 0) -> str:
                 )
 
     else:
-        #LAD: rank scale
-        # diff = ppfi_rank − imd_rank
-        # diff > 0 - ppfi_rank larger (lower food priority) + imd_rank smaller (more deprived)
-        #           - IMD ranks area as more deprived than PPFI ranks it as a food priority
-        # diff < 0 - ppfi_rank smaller (higher food priority) + imd_rank larger (less deprived)
-        #           - PPFI ranks area as higher food priority than IMD ranks it as deprived
         slight_thr   = max(1, int(round(0.10 * n_lad))) if n_lad else 10
         moderate_thr = max(slight_thr + 1, int(round(0.25 * n_lad))) if n_lad else 25
 
@@ -238,15 +224,12 @@ def _alignment_band(mismatch_value, geography: str, n_lad: int):
         return f"Strongly misaligned: {direction}"
 
 
-# one boundary around filtered lsoas
 def add_union_outline_layer(fig, gdf_lsoa_subset, width=3):
     if gdf_lsoa_subset is None or getattr(gdf_lsoa_subset, "empty", True):
         return fig
 
     try:
-        import plotly.graph_objects as go
         from shapely.ops import unary_union
-        from shapely.geometry import MultiPolygon, Polygon
 
         geoms = gdf_lsoa_subset.geometry.dropna()
         if geoms.empty:
@@ -254,8 +237,6 @@ def add_union_outline_layer(fig, gdf_lsoa_subset, width=3):
 
         union_geom = unary_union([g.buffer(0) for g in geoms])
 
-        # collect exterior rings as lat/lon coordinate lists for Scattermapbox
-        # using NaN separators between rings so plotly draws them as separate lines
         lons, lats = [], []
 
         def add_ring(coords):
@@ -271,27 +252,25 @@ def add_union_outline_layer(fig, gdf_lsoa_subset, width=3):
             for poly in union_geom.geoms:
                 add_ring(poly.exterior.coords)
 
-        trace = go.Scattermapbox(
-            lon=lons,
-            lat=lats,
-            mode="lines",
-            line=dict(color="#24226f", width=width),
-            hoverinfo="skip",
-            showlegend=False,
-            name="",
-        )
-        fig.add_trace(trace)
-        print(f"[add_union_outline_layer] drew outline over {len(geoms)} LSOAs width={width}")
+        trace = {
+            "type": "scattermapbox",
+            "lon": lons,
+            "lat": lats,
+            "mode": "lines",
+            "line": {"color": "#24226f", "width": width},
+            "hoverinfo": "skip",
+            "showlegend": False,
+            "name": "",
+        }
+        fig["data"].append(trace)
 
     except Exception as e:
         import traceback
         print(f"[add_union_outline_layer] failed: {e}")
-        traceback.print_exc()
 
     return fig
 
 
-# build the map
 def make_map(
     geography: str,
     dataset: str,
@@ -309,7 +288,7 @@ def make_map(
     metric = "Decile" if geography == "lsoa" else "Rank"
 
     if geography == "lsoa":
-        gdf = gdf_lsoa.copy()
+        gdf = gdf_lsoa
         geojson = geojson_lsoa
         dom_ppfi = PPFI_DOMAINS_LSOA.get(domain)
         dom_imd  = IMD_DOMAINS_LSOA.get(domain)
@@ -319,7 +298,7 @@ def make_map(
             gdf, [LSOA_NAME, "LSOA21NM", "LSOA11NM", "lsoa_name", "name"]
         )
     else:
-        gdf = gdf_lad.copy()
+        gdf = gdf_lad
         geojson = geojson_lad
         dom_ppfi = PPFI_DOMAINS_LAD.get(domain)
         dom_imd  = IMD_DOMAINS_LAD.get(domain)
@@ -335,12 +314,15 @@ def make_map(
         )
 
     color_col = dom_ppfi if dataset == "ppfi" else dom_imd
-    colorscale = _pick_palette(geography, dataset)
+    
+    # Format the custom hex arrays into Plotly's continuous scale dictionary syntax
+    colorscale_raw = _pick_palette(geography, dataset)
+    n = len(colorscale_raw)
+    colorscale = [[i / (n - 1) if n > 1 else 0, c] for i, c in enumerate(colorscale_raw)]
 
     gdf["name"] = _safe_series(gdf, name_col, "")
 
     if compact_hover:
-        # compact hover (compare maps)
         gdf["ppfi_val"] = _safe(gdf, dom_ppfi)
         gdf["imd_val"]  = _safe(gdf, dom_imd)
 
@@ -393,18 +375,16 @@ def make_map(
             lambda r: _hover_narrative(r.to_dict(), geography, len(gdf_lad_full)), axis=1
         )
 
-        # include lad_cd at index 6 so the drilldown callback can toggle LAD
-        # selection even when the user clicks an LSOA polygon
         gdf["_lad_cd"] = _safe_series(gdf, "lad_cd", "")
 
         customdata = gdf[[
-            "name",          # 0
-            "ppfi_combined", # 1
-            "imd_combined",  # 2
-            "diff",          # 3
-            "domain_line",   # 4
-            "narrative",     # 5
-            "_lad_cd",       # 6
+            "name",          
+            "ppfi_combined", 
+            "imd_combined",  
+            "diff",          
+            "domain_line",   
+            "narrative",     
+            "_lad_cd",       
         ]].values
 
         metric_label = "Decile" if geography == "lsoa" else "Rank"
@@ -417,59 +397,69 @@ def make_map(
             "<extra></extra>"
         )
 
-    fig = px.choropleth_mapbox(
-        gdf,
-        geojson=geojson,
-        locations="id",
-        featureidkey="properties.id",
-        color=color_col,
-        range_color=range_color,
-        color_continuous_scale=colorscale,
-        opacity=0.85,
-    )
-
-    fig.update_traces(
-        customdata=customdata,
-        hovertemplate=hovertemplate,
-        marker_line_width=0.5 if geography == "lsoa" else 0.3,
-        marker_line_color="rgba(255,255,255,0.4)" if geography == "lsoa" else "rgba(0,0,0,0.3)",
-    )
-
-    fig.update_layout(
-        mapbox=dict(
-            style="carto-positron",
-            zoom=5.3,
-            center={"lat": 53.7, "lon": -1.5},
-        ),
-        margin=dict(l=0, r=0, t=40, b=0),
-        uirevision=uirevision,
-        clickmode="event",
-        coloraxis_colorbar=dict(
-            title=colorbar_title,
-            thickness=12,
-            len=0.5,
-        ),
-        title={
-            "text": (
-                f"{dataset.upper()} – {pretty} ({geography.upper()})<br>"
-                f"<sup style='font-size:11px; color:#888'>"
-                f"{'Decile 1 = highest priority' if geography == 'lsoa' else 'Rank 1 = highest priority'}"
-                f"</sup>"
-            ),
-            "x": 0.5,
-        },
-        hoverlabel=dict(
-            bgcolor="rgba(255,255,255,0.97)",
-            bordercolor="rgba(36,34,111,0.3)",
-            font_size=13,
-            font_color="#1a1a2e",
-            font_family="Figtree, system-ui, sans-serif",
-            namelength=0,
-            align="left",
-        ),
-        #keep tooltip in topleft of map so it never overlaps the cursor location
-        hovermode="closest",
-    )
+    # Core dictionary representation to bypass Plotly class deepcopy
+    fig = {
+        "data": [{
+            "type": "choroplethmapbox",
+            "geojson": geojson,
+            "locations": gdf["id"],
+            "z": gdf[color_col],
+            "featureidkey": "properties.id",
+            "colorscale": colorscale,
+            "zmin": range_color[0] if range_color else None,
+            "zmax": range_color[1] if range_color else None,
+            "marker": {
+                "opacity": 0.85,
+                "line": {
+                    "width": 0.5 if geography == "lsoa" else 0.3,
+                    "color": "rgba(255,255,255,0.4)" if geography == "lsoa" else "rgba(0,0,0,0.3)"
+                }
+            },
+            "customdata": customdata,
+            "hovertemplate": hovertemplate,
+            "coloraxis": "coloraxis"
+        }],
+        "layout": {
+            "mapbox": {
+                "style": "carto-positron",
+                "zoom": 5.3,
+                "center": {"lat": 53.7, "lon": -1.5},
+                "layers": []
+            },
+            "margin": {"l": 0, "r": 0, "t": 40, "b": 0},
+            "uirevision": uirevision,
+            "clickmode": "event",
+            "coloraxis": {
+                "colorscale": colorscale,
+                "cmin": range_color[0] if range_color else None,
+                "cmax": range_color[1] if range_color else None,
+                "colorbar": {
+                    "title": colorbar_title,
+                    "thickness": 12,
+                    "len": 0.5,
+                }
+            },
+            "title": {
+                "text": (
+                    f"{dataset.upper()} – {pretty} ({geography.upper()})<br>"
+                    f"<sup style='font-size:11px; color:#888'>"
+                    f"{'Decile 1 = highest priority' if geography == 'lsoa' else 'Rank 1 = highest priority'}"
+                    f"</sup>"
+                ),
+                "x": 0.5,
+            },
+            "hoverlabel": {
+                "bgcolor": "rgba(255,255,255,0.97)",
+                "bordercolor": "rgba(36,34,111,0.3)",
+                "font_size": 13,
+                "font_color": "#1a1a2e",
+                "font_family": "Figtree, system-ui, sans-serif",
+                "namelength": 0,
+                "align": "left",
+            },
+            "hovermode": "closest",
+        }
+    }
 
     if geography == "lsoa" and selected_lads:
         fig = add_union_outline_layer(fig, gdf_lsoa, width=3)
@@ -480,36 +470,34 @@ def make_map(
         selected_ids = {s["lad_id"] for s in selected_lads if s.get("lad_id")}
 
         if drilled:
-            # Use geojson_lad directly — no dissolve needed, avoids geometry artefacts
-            lad_bg = gdf_lad_full.copy()
+            lad_bg = gdf_lad_full
             lad_name_col = _first_existing_col(
                 lad_bg, [LAD_NAME, "LAD24NM", "LAD23NM", "lad_name", "NAME", "name"]
             )
             lad_bg["name"] = _safe_series(lad_bg, lad_name_col, "")
             lad_bg["_sel"] = lad_bg["id"].isin(selected_ids).astype(int)
 
-            import plotly.graph_objects as go
-            lad_trace = go.Choroplethmapbox(
-                geojson=geojson_lad,
-                locations=lad_bg["id"],
-                z=lad_bg["_sel"],
-                featureidkey="properties.id",
-                colorscale=[
+            lad_trace = {
+                "type": "choroplethmapbox",
+                "geojson": geojson_lad,
+                "locations": lad_bg["id"],
+                "z": lad_bg["_sel"],
+                "featureidkey": "properties.id",
+                "colorscale": [
                     [0, "rgba(160,160,180,0.08)"],
                     [1, "rgba(100,100,140,0.18)"],
                 ],
-                showscale=False,
-                marker_line_color="rgba(0,0,0,0)",
-                marker_line_width=0,
-                marker_opacity=0,
-                customdata=lad_bg[["name"]].values,
-                hovertemplate="<b>%{customdata[0]}</b><br>Click to select / deselect<extra></extra>",
-                name="LAD boundaries",
-            )
-            fig.add_trace(lad_trace)
-            fig.data = (fig.data[-1],) + fig.data[:-1]
+                "showscale": False,
+                "marker": {
+                    "line": {"color": "rgba(0,0,0,0)", "width": 0},
+                    "opacity": 0,
+                },
+                "customdata": lad_bg[["name"]].values,
+                "hovertemplate": "<b>%{customdata[0]}</b><br>Click to select / deselect<extra></extra>",
+                "name": "LAD boundaries",
+            }
+            fig["data"].insert(0, lad_trace)
 
-            # draw all LAD outlines, misalignment at selected edge is masked by union outline above
             lad_outline_layer = {
                 "sourcetype": "geojson",
                 "source": geojson_lad,
@@ -519,11 +507,9 @@ def make_map(
                 "opacity": 0.35,
                 "below": "",
             }
-            existing = list(getattr(fig.layout.mapbox, "layers", []) or [])
-            fig.update_layout(mapbox_layers=existing + [lad_outline_layer])
+            fig["layout"]["mapbox"]["layers"].append(lad_outline_layer)
 
         else:
-            #simple LAD outlines when not drilled
             lad_layer = {
                 "sourcetype": "geojson",
                 "source": geojson_lad,
@@ -533,8 +519,7 @@ def make_map(
                 "opacity": 0.45,
                 "below": "",
             }
-            existing = list(getattr(fig.layout.mapbox, "layers", []) or [])
-            fig.update_layout(mapbox_layers=existing + [lad_layer])
+            fig["layout"]["mapbox"]["layers"].append(lad_layer)
 
     return fig
 

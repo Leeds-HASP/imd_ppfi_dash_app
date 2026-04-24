@@ -68,9 +68,6 @@ def load_all_data():
     # rest of prep (fast. no geometry work)
     df_mismatch = pd.read_csv('data/imd_ppfi_mismatch.csv')
 
-    gdf_lsoa = gdf_lsoa.copy()
-    df_mismatch = df_mismatch.copy()
-
     # normalise keys
     gdf_lsoa['LSOA21CD'] = gdf_lsoa['LSOA21CD'].astype(str).str.strip().str.upper()
     df_mismatch['lsoa21cd'] = df_mismatch['lsoa21cd'].astype(str).str.strip().str.upper()
@@ -111,7 +108,7 @@ def load_all_data():
     assert set(gdf_lad['id'])  == {f['properties']['id'] for f in geojson_lad['features']}
 
     # mismatch prep. rebuild scores from latest GeoJSON data
-    fresh_scores = gdf_lsoa[['LSOA21CD', 'pp_dec_combined', 'imd_decile']].copy()
+    fresh_scores = gdf_lsoa[['LSOA21CD', 'pp_dec_combined', 'imd_decile']]
     fresh_scores = fresh_scores.rename(columns={'LSOA21CD': 'lsoa21cd'})
     drop_cols = [c for c in ['pp_dec_combined', 'imd_decile', 'ppfi_imd_diff', 'abs_diff']
                  if c in df_mismatch.columns]
