@@ -9,6 +9,7 @@ import geopandas as gpd
 
 # cache directory, sits alongside the data folder
 _CACHE_DIR = 'data/cache'
+_PRE_CONVERT_DIR = 'data/pre_convert'  # during dev, read from here to avoid repeated geometry work
 
 def _source_hash():
     paths = ['data/ppfi_imd_lsoa_england.geojson', 'data/ppfi_imd_lad_england.geojson']
@@ -18,15 +19,22 @@ def _source_hash():
 
 def _cache_paths(h):
     return {
-        'lsoa_geo': os.path.join(_CACHE_DIR, f'lsoa_simplified_{h}.geojson'),
-        'lad_geo':  os.path.join(_CACHE_DIR, f'lad_simplified_{h}.geojson'),
+        'lsoa_geo': os.path.join(_CACHE_DIR, f'lsoa_simplified_{h}.parquet'),
+        'lad_geo':  os.path.join(_CACHE_DIR, f'lad_simplified_{h}.parquet'),
+    }
+
+def _pre_convert_paths():
+    return {
+        'lsoa_geo': os.path.join(_PRE_CONVERT_DIR, f'lsoa_simplified.geojson'),
+        'lad_geo':  os.path.join(_PRE_CONVERT_DIR, f'lad_simplified.geojson'),
     }
 
 
 def load_all_data():
     os.makedirs(_CACHE_DIR, exist_ok=True)
     h = _source_hash()
-    paths = _cache_paths(h)
+    # paths = _cache_paths(h)
+    paths = _pre_convert_paths()  # during dev, read from pre-convert to avoid repeated geometry work
 
     # load or build simplified GeoJSON
     if os.path.exists(paths['lsoa_geo']) and os.path.exists(paths['lad_geo']):
