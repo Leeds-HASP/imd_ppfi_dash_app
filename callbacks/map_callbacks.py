@@ -5,8 +5,6 @@ from dash import no_update, html
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
 
-from pyinstrument import Profiler
-
 from app import app
 from utils.data import gdf_lsoa, geojson_lsoa, gdf_lad, geojson_lad
 from utils.figures import (
@@ -198,8 +196,7 @@ def update_domain_options(view, geo, dataset, current_domain):
     Input('selected_lad_store', 'data'),
 )
 def update_map(geography, dataset, domain, view, lsoa_decile, lad_percent, selected_lads):
-    profiler = Profiler()
-    profiler.start()
+
     if view != 'map':
         raise PreventUpdate
 
@@ -243,9 +240,7 @@ def update_map(geography, dataset, domain, view, lsoa_decile, lad_percent, selec
                 fig["layout"]["title"] = _map_title(f'{dataset.upper()} – {domain.replace("_"," ").title()} (LSOA) within {lad_label}', geography)
         except Exception:
             pass
-
-    profiler.stop()
-    profiler.open_in_browser()
+        
     return fig
 
 @app.callback(
