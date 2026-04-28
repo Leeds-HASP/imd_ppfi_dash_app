@@ -371,9 +371,10 @@ def make_map(
         else:
             gdf["domain_line"] = ""
 
-        gdf["narrative"] = gdf.apply(
-            lambda r: _hover_narrative(r.to_dict(), geography, len(gdf_lad_full)), axis=1
-        )
+        # Convert to dict records once (bypasses pandas Series overhead)
+        records = gdf.to_dict('records')
+        n_lad = len(gdf_lad_full)
+        gdf["narrative"] = [_hover_narrative(r, geography, n_lad) for r in records]
 
         gdf["_lad_cd"] = _safe_series(gdf, "lad_cd", "")
 

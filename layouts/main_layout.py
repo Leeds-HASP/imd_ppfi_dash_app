@@ -528,37 +528,24 @@ layout = html.Div(
                             },
                             children=[
                                 html.Strong("How to use this explorer: "),
-                                "Use the filters below to narrow by local authority, mismatch direction, or minimum "
-                                "decile gap. Select any row in the table to see a full breakdown of PPFI and IMD "
-                                "domain scores for that neighbourhood - the charts and summary appear above the table "
+                                "Use the filters below to narrow by local authority, mismatch direction, or minimum ",
+                                "decile gap. Select any row in the table to see a full breakdown of PPFI and IMD ",
+                                "domain scores for that neighbourhood - the charts and summary appear above the table ",
                                 "once a row is selected. Click column headers to sort.",
-                            ],
-                        ),
-                        #domain divergence panel (shown once row selected, above table)
-                        html.Div(
-                            id="domain_divergence_panel",
-                            style={"display": "none"},
-                            children=[
-                                html.H4(id="domain_divergence_title"),
-                                html.Div(id="domain_divergence_narrative"),
                                 html.Div(
-                                    className="domain-bars-row",
+                                    style={"marginTop": "10px", "paddingTop": "10px", "borderTop": "1px solid #dbe1ec", "display": "flex", "alignItems": "center", "flexWrap": "wrap", "gap": "16px"},
                                     children=[
-                                        html.Div(className="domain-bar-col", children=[
-                                            html.H5("PPFI domains (decile; 1 = most deprived)"),
-                                            dcc.Graph(id="domain_bar_ppfi",
-                                                      style={"height": "300px"},
-                                                      config={"displayModeBar": False}),
-                                        ]),
-                                        html.Div(className="domain-bar-col", children=[
-                                            html.H5("IMD domains (decile; 1 = most deprived)"),
-                                            dcc.Graph(id="domain_bar_imd",
-                                                      style={"height": "300px"},
-                                                      config={"displayModeBar": False}),
-                                        ]),
-                                    ],
-                                ),
-                                html.Hr(style={"borderColor": "#e0e4f0", "margin": "16px 0"}),
+                                        html.Strong("Table row colours:", style={"marginRight": "4px"}),
+                                        html.Div([
+                                            html.Span(style={"display": "inline-block", "width": "12px", "height": "12px", "backgroundColor": "#e8f0fb", "border": "1px solid #1d3461", "marginRight": "6px", "borderRadius": "2px"}), 
+                                            "PPFI more deprived (gap > 2 deciles)"
+                                        ], style={"display": "flex", "alignItems": "center"}),
+                                        html.Div([
+                                            html.Span(style={"display": "inline-block", "width": "12px", "height": "12px", "backgroundColor": "#fdecea", "border": "1px solid #7b1e1e", "marginRight": "6px", "borderRadius": "2px"}), 
+                                            "IMD more deprived (gap > 2 deciles)"
+                                        ], style={"display": "flex", "alignItems": "center"}),
+                                    ]
+                                )
                             ],
                         ),
                         #filters + download row

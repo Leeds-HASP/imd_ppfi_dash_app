@@ -9,8 +9,8 @@ gdf_lsoa = gdf_lsoa.set_crs(27700, allow_override=True).to_crs(4326)
 gdf_lad  = gdf_lad.set_crs(27700, allow_override=True).to_crs(4326)
 
 # simplify
-gdf_lsoa.geometry = gdf_lsoa.geometry.simplify(tolerance=0.0005, preserve_topology=True)
-gdf_lad.geometry  = gdf_lad.geometry.simplify(tolerance=0.0010, preserve_topology=True)
+gdf_lsoa.geometry = gdf_lsoa.geometry.simplify(tolerance=0.005, preserve_topology=True)
+gdf_lad.geometry  = gdf_lad.geometry.simplify(tolerance=0.010, preserve_topology=True)
 
 # make pre convert dir
 os.makedirs('data/pre_convert', exist_ok=True)
