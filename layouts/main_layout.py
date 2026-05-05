@@ -538,6 +538,7 @@ layout = html.Div(
                                     html.Li([html.Span(style={"display": "inline-block", "width": "12px", "height": "12px", "backgroundColor": "#fdecea", "marginRight": "6px", "verticalAlign": "middle"}), "IMD more deprived (IMD decile at least 3 higher than PPFI)"], style={"fontSize": "12px"}),
                                     html.Li([html.Span(style={"display": "inline-block", "width": "12px", "height": "12px", "backgroundColor": "transparent", "border": "1px solid #ccc", "marginRight": "6px", "verticalAlign": "middle"}), "Broadly aligned (decile difference less than 3 in either direction)"], style={"fontSize": "12px"}),
                                 ], style={"paddingLeft": "20px", "marginTop": "8px", "marginBottom": "0"}),
+                            ],
                         ),
                         #domain divergence panel (shown once row selected, above table)
                         html.Div(

@@ -52,8 +52,8 @@ def load_all_data():
         gdf_lad  = gdf_lad.set_crs(27700, allow_override=True).to_crs(4326)
 
         # simplify
-        gdf_lsoa.geometry = gdf_lsoa.geometry.simplify(tolerance=0.0001, preserve_topology=True)
-        gdf_lad.geometry  = gdf_lad.geometry.simplify(tolerance=0.0003, preserve_topology=True)
+        gdf_lsoa.geometry = gdf_lsoa.geometry.simplify(tolerance=0.0005, preserve_topology=True)
+        gdf_lad.geometry  = gdf_lad.geometry.simplify(tolerance=0.0010, preserve_topology=True)
 
         # evict old cache files so the folder doesn't grow indefinitely
         for f in os.listdir(_CACHE_DIR):
