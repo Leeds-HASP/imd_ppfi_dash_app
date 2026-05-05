@@ -545,7 +545,7 @@ layout = html.Div(
                                     className="domain-bars-row",
                                     children=[
                                         html.Div(className="domain-bar-col", children=[
-                                            html.H5("PPFI domains (decile; 1 = highest priority)"),
+                                            html.H5("PPFI domains (decile; 1 = most deprived)"),
                                             dcc.Graph(id="domain_bar_ppfi",
                                                       style={"height": "300px"},
                                                       config={"displayModeBar": False}),
@@ -582,7 +582,7 @@ layout = html.Div(
                                         options=[
                                             {"label": "All",                 "value": "all"},
                                             {"label": "IMD more deprived",   "value": "high_imd"},
-                                            {"label": "PPFI higher priority","value": "high_ppfi"},
+                                            {"label": "PPFI more deprived",  "value": "high_ppfi"},
                                             {"label": "Broadly aligned",     "value": "aligned"},
                                         ],
                                         value="all", clearable=False,
@@ -701,8 +701,8 @@ layout = html.Div(
                                         html.Li("Access to online deliveries (12.5%)", style={"fontSize": "12px"}),
                                         html.Li("Proximity to non-supermarket food provision (12.5%)", style={"fontSize": "12px"}),
                                         html.Li("Socio-economic barriers (16.7%)", style={"fontSize": "12px"}),
-                                        html.Li("Fuel Poverty (16.7%)", style={"fontSize": "12px"}),
-                                        html.Li("Family food support (16.7%)", style={"fontSize": "12px"}),
+                                        html.Li("Fuel poverty (16.7%)", style={"fontSize": "12px"}),
+                                        html.Li("Need for family food support (16.7%)", style={"fontSize": "12px"}),
                                     ], style={"margin": "0 0 8px 0", "paddingLeft": "18px", "lineHeight": "1.7"}),
                                     html.A(
                                         "View full methodology and domain weightings",
@@ -760,8 +760,8 @@ layout = html.Div(
                                     html.Summary("Geography levels", className="accordion-summary"),
                                     html.Div(className="accordion-body", children=[
                                         html.P([html.Strong("Two levels of geography are available:",style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"})]),
-                                        html.P([html.Strong("LAD (Local Authority District): "), "local council area level, ranked from 1 (most vulnerable) upwards across England."], style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
-                                        html.P([html.Strong("LSOA (Lower Super Output Area): "), "fine-grained neighbourhood view, deciles 1-10 where 1 = most vulnerable. Click a LAD on the map to drill down, or select LSOA from the Geography panel."], style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                        html.P([html.Strong("LAD (Local Authority District): "), "local council area level, ranked from 1 (most deprived) to 296 across England."], style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
+                                        html.P([html.Strong("LSOA (Lower Super Output Area): "), "fine-grained neighbourhood view, deciles 1-10 where 1 = most deprived. Click a LAD on the map to drill down, or select LSOA from the Geography panel."], style={"fontSize": "13px", "lineHeight": "1.6", "margin": "4px 0"}),
                                     ]),
                                 ]),
                             ],
@@ -784,7 +784,7 @@ layout = html.Div(
                                 "lineHeight": "1.6",
                             },
                             children=[
-                                "Sargent, M., Wilkins, E., Jenneson, V., Johnstone, A., Morris, M. and Kininmonth, A.R. 2026. ",
+                                "Sargent, M., Wilkins, E., Jenneson, V., Johnstone, A., Morris, M.A. and Kininmonth, A.R. 2026. ",
                                 html.Em("PPFI-IMD Explorer"),
                                 ". Data asset provided by the Healthy & Sustainable Places Data Service (ES/Z504336/1). Available at: ",
                                 html.A(

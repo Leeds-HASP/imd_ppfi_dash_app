@@ -23,7 +23,7 @@ from utils.constants import (
 
 # helpers
 def _map_title(text, geography):
-    subtitle = "Decile 1 = highest priority" if geography == "lsoa" else "Rank 1 = highest priority"
+    subtitle = "Decile 1 = most deprived" if geography == "lsoa" else "Rank 1 = most deprived"
     return {"text": f"{text}<br><sup style='font-size:11px; color:#888'>{subtitle}</sup>", "x": 0.5}
 
 def _to_int_list(v):

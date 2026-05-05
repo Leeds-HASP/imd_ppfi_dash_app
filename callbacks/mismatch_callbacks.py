@@ -128,7 +128,7 @@ def _narrative(lsoa_name, ppfi_dec, imd_dec, diff, domain_row):
 
     elif diff < -3:
         paras.append(html.P(
-            f'{lsoa_name} is significantly higher priority on PPFI (decile {ppfi_int}) '
+            f'{lsoa_name} is significantly more deprived on PPFI (decile {ppfi_int}) '
             f'than IMD would predict (decile {imd_int}).'
         ))
         ppfi_vals = {col: domain_row.get(col) for col, _ in PPFI_DOMAIN_COLS
@@ -160,7 +160,7 @@ def _narrative(lsoa_name, ppfi_dec, imd_dec, diff, domain_row):
         ))
 
     paras.append(html.P(html.I(
-        'Decile 1 = most deprived / highest priority. '
+        'Decile 1 = most deprived. '
         'Domain scores are from PPFI V2.1 and English IMD 2025.'
     )))
     return html.Div(paras, style={
