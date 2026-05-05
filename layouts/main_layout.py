@@ -532,7 +532,12 @@ layout = html.Div(
                                 "decile gap. Select any row in the table to see a full breakdown of PPFI and IMD "
                                 "domain scores for that neighbourhood - the charts and summary appear above the table "
                                 "once a row is selected. Click column headers to sort.",
-                            ],
+                                # the color keys showing a little color box and explanation for the conditional formatting in the table
+                                html.Ul([
+                                    html.Li([html.Span(style={"display": "inline-block", "width": "12px", "height": "12px", "backgroundColor": "#e8f0fb", "marginRight": "6px", "verticalAlign": "middle"}), "PPFI more deprived (PPFI decile at least 3 higher than IMD)"], style={"fontSize": "12px"}),
+                                    html.Li([html.Span(style={"display": "inline-block", "width": "12px", "height": "12px", "backgroundColor": "#fdecea", "marginRight": "6px", "verticalAlign": "middle"}), "IMD more deprived (IMD decile at least 3 higher than PPFI)"], style={"fontSize": "12px"}),
+                                    html.Li([html.Span(style={"display": "inline-block", "width": "12px", "height": "12px", "backgroundColor": "transparent", "border": "1px solid #ccc", "marginRight": "6px", "verticalAlign": "middle"}), "Broadly aligned (decile difference less than 3 in either direction)"], style={"fontSize": "12px"}),
+                                ], style={"paddingLeft": "20px", "marginTop": "8px", "marginBottom": "0"}),
                         ),
                         #domain divergence panel (shown once row selected, above table)
                         html.Div(
@@ -795,13 +800,13 @@ layout = html.Div(
                                     **{"aria-label": "Healthy and Sustainable Places Data Service website, opens in a new tab"},
                                     style={"color": "var(--brand-green)"},
                                 ),
-                                ". [Accessed: ",
-                                html.Span(
-                                    id="citation_date",
-                                    children="[date accessed]",
-                                    style={"fontStyle": "normal", "color": "#888"},
-                                ),
-                                "].",
+                                # ". [Accessed: ",
+                                # html.Span(
+                                #     id="citation_date",
+                                #     children="[date accessed]",
+                                #     style={"fontStyle": "normal", "color": "#888"},
+                                # ),
+                                # "].",
                             ],
                         ),
                         html.P(
