@@ -9,6 +9,7 @@ from dash.dependencies import Input, Output
 from app import app
 
 from utils.data import gdf_lsoa, geojson_lsoa, gdf_lad, geojson_lad
+from utils.geojson_subset import get_lsoa_geojson_for_lads
 from utils.figures import (
     make_map,
     get_domains_for_single,
@@ -174,6 +175,11 @@ def drilldown_lad_to_lsoa(click_single, click_left, click_right, geography, view
     if geography not in ('lad', 'lsoa'):
         raise PreventUpdate
 
+    # ignore map clicks when already in LSOA view — only allow LAD selection in LAD view
+    map_triggers = {'map_single', 'map_compare_left', 'map_compare_right'}
+    if geography == 'lsoa' and triggered in map_triggers:
+        raise PreventUpdate
+
     if view == 'map' and triggered == 'map_single':
         lad_id, lad_name = _extract_lad_from_click(click_single, geography)
     elif view == 'compare' and triggered in ('map_compare_left', 'map_compare_right'):
@@ -313,13 +319,16 @@ def update_map(geography, dataset, domain, view, lsoa_decile, lad_percent, selec
     if geography == 'lad':
         filtered_lad = _filter_lad_by_percent(filtered_lad, dataset, domain, lad_percent)
 
-    lad_rev = '_'.join(sorted(s['lad_id'] for s in selected_lads)) or 'none'
+    lad_ids = [s['lad_id'] for s in selected_lads if s.get('lad_id')]
+    active_geojson_lsoa = get_lsoa_geojson_for_lads(lad_ids) if geography == 'lsoa' and lad_ids else geojson_lsoa
+
+    lad_rev = '_'.join(sorted(lad_ids)) or 'none'
     fig = make_map(
         geography,
         dataset,
         domain,
         filtered_lsoa,
-        geojson_lsoa,
+        active_geojson_lsoa,
         filtered_lad,
         geojson_lad,
         selected_lads=selected_lads,
@@ -385,7 +394,10 @@ def update_compare_maps(geography, domain_ppfi, domain_imd, lsoa_decile, lad_per
         filtered_lad_left = _filter_lad_by_percent(lad_base, 'ppfi', domain_ppfi, lad_percent)
         filtered_lad_right = _filter_lad_by_percent(lad_base, 'imd', domain_imd, lad_percent)
 
-    lad_rev = '_'.join(sorted(s['lad_id'] for s in selected_lads)) or 'none'
+    lad_ids = [s['lad_id'] for s in selected_lads if s.get('lad_id')]
+    active_geojson_lsoa = get_lsoa_geojson_for_lads(lad_ids) if geography == 'lsoa' and lad_ids else geojson_lsoa
+
+    lad_rev = '_'.join(sorted(lad_ids)) or 'none'
     compare_rev = f"compare_{geography}_{lad_rev}"
 
     left_fig = make_map(
@@ -393,7 +405,7 @@ def update_compare_maps(geography, domain_ppfi, domain_imd, lsoa_decile, lad_per
         'ppfi',
         domain_ppfi,
         filtered_lsoa_left,
-        geojson_lsoa,
+        active_geojson_lsoa,
         filtered_lad_left,
         geojson_lad,
         compact_hover=True,
@@ -407,7 +419,7 @@ def update_compare_maps(geography, domain_ppfi, domain_imd, lsoa_decile, lad_per
         'imd',
         domain_imd,
         filtered_lsoa_right,
-        geojson_lsoa,
+        active_geojson_lsoa,
         filtered_lad_right,
         geojson_lad,
         compact_hover=True,
