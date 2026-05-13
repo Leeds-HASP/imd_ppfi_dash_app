@@ -129,6 +129,11 @@ layout = html.Div(
                             ],
                             value="lad",
                         ),
+                        html.Div(
+                            id="lsoa_switch_hint",
+                            children="Tip: LSOA maps load after selecting one or more LADs.",
+                            style={"display": "none"},
+                        ),
                     ],
                 ),
 

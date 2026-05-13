@@ -1,6 +1,7 @@
 # callbacks/map_callbacks.py
 import math
 import dash
+import plotly.graph_objects as go
 from dash import no_update, html
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output
@@ -118,6 +119,33 @@ def _make_lad_label(selected_lads):
     return f'{names[0]}, {names[1]} + {len(names) - 2} more'
 
 
+def _make_select_lad_figure(title_text: str):
+    fig = go.Figure()
+    fig.update_layout(
+        mapbox=dict(
+            style='carto-positron',
+            zoom=5.3,
+            center={'lat': 53.7, 'lon': -1.5},
+        ),
+        margin=dict(l=0, r=0, t=40, b=0),
+        clickmode='event',
+        title={'text': title_text, 'x': 0.5},
+        annotations=[
+            dict(
+                text='Select one or more LADs in LAD view, then switch to LSOA.',
+                x=0.5,
+                y=0.5,
+                xref='paper',
+                yref='paper',
+                showarrow=False,
+                font=dict(size=14, color='#444'),
+                bgcolor='rgba(255,255,255,0.9)',
+            )
+        ],
+    )
+    return fig
+
+
 # drilldown: clicking a LAD toggles it in/out of the selected list
 from dash.dependencies import State
 
@@ -182,9 +210,53 @@ def drilldown_lad_to_lsoa(click_single, click_left, click_right, geography, view
     else:
         new_store = current_store + [{'lad_id': lad_id, 'lad_name': lad_name}]
 
-    if not new_store:
-        return [], 'lad'
-    return new_store, 'lsoa'
+    return new_store, no_update
+
+
+@app.callback(
+    Output('geography_selector', 'className'),
+    Output('lsoa_switch_hint', 'children'),
+    Output('lsoa_switch_hint', 'style'),
+    Input('selected_lad_store', 'data'),
+    Input('geography_selector', 'value'),
+    Input('view_selector', 'value'),
+)
+def update_lsoa_switch_hint(selected_lads, geography, view):
+    base_style = {
+        'fontSize': '11px',
+        'color': '#666',
+        'marginTop': '6px',
+        'padding': '6px 8px',
+        'background': 'rgba(36,34,111,0.06)',
+        'border': '1px solid rgba(36,34,111,0.12)',
+        'borderRadius': '8px',
+    }
+
+    if view not in ('map', 'compare'):
+        return 'nav-radio', 'Tip: LSOA maps load after selecting one or more LADs.', {**base_style, 'display': 'none'}
+
+    if not selected_lads:
+        selected_lads = []
+    elif isinstance(selected_lads, dict):
+        selected_lads = [selected_lads] if selected_lads.get('lad_id') else []
+
+    if geography == 'lad' and selected_lads:
+        n = len(selected_lads)
+        noun = 'LAD' if n == 1 else 'LADs'
+        return (
+            'nav-radio lsoa-ready',
+            f'{n} {noun} selected. Switch Geography to LSOA to load detailed areas.',
+            {**base_style, 'display': 'block'}
+        )
+
+    if geography == 'lsoa' and not selected_lads:
+        return (
+            'nav-radio',
+            'Select one or more LADs in LAD view, then switch to LSOA.',
+            {**base_style, 'display': 'block'}
+        )
+
+    return 'nav-radio', 'Tip: LSOA maps load after selecting one or more LADs.', {**base_style, 'display': 'block'}
 
 
 # domain opts
@@ -224,6 +296,12 @@ def update_map(geography, dataset, domain, view, lsoa_decile, lad_percent, selec
         selected_lads = []
     elif isinstance(selected_lads, dict):
         selected_lads = [selected_lads] if selected_lads.get('lad_id') else []
+
+    if geography == 'lsoa' and not selected_lads:
+        pretty = domain.replace('_', ' ').title()
+        return _make_select_lad_figure(
+            f"{dataset.upper()} – {pretty} (LSOA)<br><sup style='font-size:11px; color:#888'>LAD selection required</sup>"
+        )
 
     filtered_lsoa = gdf_lsoa.copy()
     filtered_lad = gdf_lad.copy()
@@ -282,6 +360,11 @@ def update_compare_maps(geography, domain_ppfi, domain_imd, lsoa_decile, lad_per
         selected_lads = []
     elif isinstance(selected_lads, dict):
         selected_lads = [selected_lads] if selected_lads.get('lad_id') else []
+
+    if geography == 'lsoa' and not selected_lads:
+        left_title = f"PPFI – {domain_ppfi.replace('_', ' ').title()} (LSOA)<br><sup style='font-size:11px; color:#888'>LAD selection required</sup>"
+        right_title = f"IMD – {domain_imd.replace('_', ' ').title()} (LSOA)<br><sup style='font-size:11px; color:#888'>LAD selection required</sup>"
+        return _make_select_lad_figure(left_title), _make_select_lad_figure(right_title)
 
     lsoa_base = gdf_lsoa.copy()
     lad_base = gdf_lad.copy()

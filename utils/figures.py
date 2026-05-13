@@ -291,6 +291,50 @@ def add_union_outline_layer(fig, gdf_lsoa_subset, width=3):
     return fig
 
 
+def add_lad_selected_outline_layer(fig, gdf_lad_subset, width=3):
+    if gdf_lad_subset is None or getattr(gdf_lad_subset, "empty", True):
+        return fig
+
+    try:
+        import plotly.graph_objects as go
+
+        geoms = gdf_lad_subset.geometry.dropna()
+        if geoms.empty:
+            return fig
+
+        lons, lats = [], []
+
+        def add_ring(coords):
+            for lon, lat in coords:
+                lons.append(lon)
+                lats.append(lat)
+            lons.append(float("nan"))
+            lats.append(float("nan"))
+
+        for geom in geoms:
+            if geom.geom_type == "Polygon":
+                add_ring(geom.exterior.coords)
+            elif geom.geom_type == "MultiPolygon":
+                for poly in geom.geoms:
+                    add_ring(poly.exterior.coords)
+
+        fig.add_trace(
+            go.Scattermapbox(
+                lon=lons,
+                lat=lats,
+                mode="lines",
+                line=dict(color="#24226f", width=width),
+                hoverinfo="skip",
+                showlegend=False,
+                name="",
+            )
+        )
+    except Exception:
+        pass
+
+    return fig
+
+
 # build the map
 def make_map(
     geography: str,
@@ -473,6 +517,11 @@ def make_map(
 
     if geography == "lsoa" and selected_lads and show_lad_boundaries:
         fig = add_union_outline_layer(fig, gdf_lsoa, width=3)
+
+    if geography == "lad" and selected_lads:
+        selected_ids = {s["lad_id"] for s in selected_lads if s.get("lad_id")}
+        selected_lad_gdf = gdf_lad_full[gdf_lad_full["id"].isin(selected_ids)]
+        fig = add_lad_selected_outline_layer(fig, selected_lad_gdf, width=3)
 
     if show_lad_boundaries and geojson_lad:
         selected_lads = selected_lads or []

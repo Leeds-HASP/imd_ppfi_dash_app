@@ -157,6 +157,12 @@ body,
   background: rgba(124, 198, 254, 0.2);
 }
 
+.nav-radio.lsoa-ready label:first-child {
+  background: rgba(124, 198, 254, 0.28);
+  border: 1px solid rgba(36, 34, 111, 0.28);
+  font-weight: 700;
+}
+
 .Select-control {
   border-radius: 12px !important;
   border: 1px solid var(--border) !important;
