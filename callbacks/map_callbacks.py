@@ -245,7 +245,7 @@ def update_map(geography, dataset, domain, view, lsoa_decile, lad_percent, selec
         filtered_lad,
         geojson_lad,
         selected_lads=selected_lads,
-        show_lad_boundaries=(geography == 'lsoa'),
+        show_lad_boundaries=False,
         uirevision=f"{geography}_{lad_rev}",
     )
 
@@ -315,7 +315,7 @@ def update_compare_maps(geography, domain_ppfi, domain_imd, lsoa_decile, lad_per
         geojson_lad,
         compact_hover=True,
         selected_lads=selected_lads,
-        show_lad_boundaries=(geography == 'lsoa'),
+        show_lad_boundaries=False,
         uirevision=compare_rev,
     )
 
@@ -329,7 +329,7 @@ def update_compare_maps(geography, domain_ppfi, domain_imd, lsoa_decile, lad_per
         geojson_lad,
         compact_hover=True,
         selected_lads=selected_lads,
-        show_lad_boundaries=(geography == 'lsoa'),
+        show_lad_boundaries=False,
         uirevision=compare_rev,
     )
 

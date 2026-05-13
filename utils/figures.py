@@ -471,7 +471,7 @@ def make_map(
         hovermode="closest",
     )
 
-    if geography == "lsoa" and selected_lads:
+    if geography == "lsoa" and selected_lads and show_lad_boundaries:
         fig = add_union_outline_layer(fig, gdf_lsoa, width=3)
 
     if show_lad_boundaries and geojson_lad:
