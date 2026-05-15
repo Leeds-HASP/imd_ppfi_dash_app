@@ -136,9 +136,54 @@ The `data_creation/` notebooks document how the source datasets were merged and 
 If you use this repository, please cite it as:
 
 ```
-Sargent, M., Wilkins, E., Jenneson, V., Johnstone, A., Morris, M. and Kininmonth, A.R. (2026). PPFI-IMD Explorer. Available from: https://github.com/mol-sarg/imd_ppfi_dash_app
+Sargent, M., Wilkins, E., Jenneson, V., Johnstone, A., Morris, M.A. and Kininmonth, A.R. (2026). PPFI-IMD Explorer. Available from: https://github.com/mol-sarg/imd_ppfi_dash_app
 ```
 
 A `citation.cff` file is included for automated citation tooling.
 
 ---
+
+## Running locally (PMTiles maps)
+
+All three maps (single, compare, mismatch) now render via **MapLibre GL + PMTiles** instead of Plotly. Geometry ships as vector tiles; values ship as a small JSON lookup that the JS layer paints in-place. You need to run a tile-prep step once, then two processes side by side (Dash app + tile server).
+
+### 1. One-off: install tippecanoe
+
+```sh
+brew install tippecanoe          # macOS
+# Linux: clone https://github.com/felt/tippecanoe and make install
+```
+
+### 2. Bake the tiles
+
+```sh
+python3 data_creation/prep_pmtiles.py
+tippecanoe \
+  -o data/pmtiles/england.pmtiles --force \
+  -L lad:data/pmtiles/lad.geojson \
+  -L lsoa:data/pmtiles/lsoa.geojson \
+  -Z 4 -z 14 \
+  --coalesce-densest-as-needed \
+  --extend-zooms-if-still-dropping \
+  --no-tile-compression
+```
+
+Outputs land in `data/pmtiles/`. Re-run this whenever the source GeoJSONs or domain columns change. The archive is ~80–150 MB — don't commit it.
+
+### 3. Serve the tiles
+
+```sh
+npx serve data/pmtiles -l 8080 --cors
+```
+
+`serve` honours HTTP `Range` requests (PMTiles needs them — the client fetches tile byte-ranges out of the archive, not the whole file) and adds CORS headers so the Dash app on port 8000 can read tiles from port 8080. Leave this running in its own terminal.
+
+### 4. Run the app
+
+```sh
+python3 index.py
+```
+
+Open <http://localhost:8000>.
+
+No Mapbox token is required (MapLibre GL is the open fork). If you swap the tile server for `python -m http.server` you'll need to add CORS headers yourself.

@@ -11,6 +11,7 @@ from utils.constants import (
     PPFI_LSOA_DOMAIN_LABELS as PPFI_DOMAIN_COLS,
     IMD_LSOA_DOMAIN_LABELS  as IMD_DOMAIN_COLS,
 )
+from utils.figures import _hover_narrative, _alignment_band
 
 LSOA_CODE_COL = 'lsoa21cd'
 LSOA_NAME_COL = 'lsoa21nm'
@@ -83,91 +84,33 @@ def _join_labels(labels):
 
 
 def _narrative(lsoa_name, ppfi_dec, imd_dec, diff, domain_row):
-    paras = []
-    ppfi_int = int(ppfi_dec) if ppfi_dec is not None else '?'
-    imd_int  = int(imd_dec)  if imd_dec  is not None else '?'
+    """Build the explanation panel using the canonical helpers in figures.py.
 
-    if diff > 3:
-        paras.append(html.P(
-            f'{lsoa_name} is significantly more deprived on IMD (decile {imd_int}) '
-            f'than on PPFI (decile {ppfi_int}).'
-        ))
-        ppfi_vals = {col: domain_row.get(col) for col, _ in PPFI_DOMAIN_COLS
-                     if domain_row.get(col) is not None}
-        if ppfi_vals:
-            best2  = sorted(ppfi_vals.items(), key=lambda x: -x[1])[:2]
-            labels = [lbl for col, lbl in PPFI_DOMAIN_COLS if col in dict(best2)]
-            if labels:
-                paras.append(html.P(
-                    f"Relatively better PPFI performance on '{labels[0]}'"
-                    + (f" and '{labels[1]}'" if len(labels) > 1 else '')
-                    + ' may be cushioning the overall PPFI score.'
-                ))
-        imd_vals = {col: domain_row.get(col) for col, _ in IMD_DOMAIN_COLS
-                    if domain_row.get(col) is not None}
-        if imd_vals:
-            worst = [lbl for col, lbl in IMD_DOMAIN_COLS
-                     if imd_vals.get(col) is not None and imd_vals[col] <= 3]
-            if not worst:
-                top2  = sorted(imd_vals.items(), key=lambda x: x[1])[:2]
-                worst = [lbl for col, lbl in IMD_DOMAIN_COLS if col in dict(top2)]
-            if worst:
-                paras.append(html.P(
-                    f'The IMD score is driven primarily by {_join_labels(worst)}'
-                    ', which are distinct from food access indicators.'
-                ))
-        concerns = [lbl for col, lbl in PPFI_DOMAIN_COLS
-                    if domain_row.get(col) is not None and domain_row.get(col) <= 3]
-        if concerns:
-            paras.append(html.P(
-                f'However, {_join_labels(concerns)} '
-                + ('still scores \u2264 3 on PPFI, indicating a remaining food affordability and access challenges.'
-                   if len(concerns) == 1 else
-                   'still score \u2264 3 on PPFI, indicating remaining food affordability and access challenges.')
-            ))
+    _hover_narrative produces a multi-line HTML string (lines separated by
+    <br>); _alignment_band labels the magnitude/direction of mismatch.
+    """
+    row = dict(domain_row or {})
+    row["ppfi_combined"] = None if ppfi_dec is None else ppfi_dec
+    row["imd_combined"]  = None if imd_dec  is None else imd_dec
+    row["diff"] = diff if diff is not None else 0
 
-    elif diff < -3:
-        paras.append(html.P(
-            f'{lsoa_name} is significantly more deprived on PPFI (decile {ppfi_int}) '
-            f'than IMD would predict (decile {imd_int}).'
-        ))
-        ppfi_vals = {col: domain_row.get(col) for col, _ in PPFI_DOMAIN_COLS
-                     if domain_row.get(col) is not None}
-        if ppfi_vals:
-            worst = [lbl for col, lbl in PPFI_DOMAIN_COLS
-                     if ppfi_vals.get(col) is not None and ppfi_vals[col] <= 3]
-            if not worst:
-                top2  = sorted(ppfi_vals.items(), key=lambda x: x[1])[:2]
-                worst = [lbl for col, lbl in PPFI_DOMAIN_COLS if col in dict(top2)]
-            if worst:
-                paras.append(html.P(
-                    f'The PPFI score is particularly driven by {_join_labels(worst)}'
-                    ', reflecting food access challenges not captured by the IMD.'
-                ))
+    narrative = _hover_narrative(row, "lsoa", 0)
+    band      = _alignment_band(diff, "lsoa", 0)
 
-    elif abs(diff) <= 1:
-        paras.append(html.P(
-            f'{lsoa_name} shows close alignment between PPFI (decile {ppfi_int}) and '
-            f'IMD (decile {imd_int}). Both indices tell a consistent story of vulnerability'
-            'for this area.'
-        ))
-
-    else:
-        direction = 'higher on IMD' if diff > 0 else 'higher on PPFI'
-        paras.append(html.P(
-            f'{lsoa_name} shows a moderate divergence: {abs(diff):.0f} decile gap, '
-            f'with the area ranking {direction} than the other index.'
-        ))
-
-    paras.append(html.P(html.I(
-        'Decile 1 = most deprived. '
-        'Domain scores are from PPFI V2.1 and English IMD 2025.'
+    children = [html.P([html.Strong(lsoa_name)])]
+    if narrative:
+        for line in narrative.split("<br>"):
+            children.append(html.P(line))
+    if band:
+        children.append(html.P(html.Em(band)))
+    children.append(html.P(html.I(
+        "Decile 1 = most deprived. Domain scores are from PPFI V2.1 and English IMD 2025."
     )))
-    return html.Div(paras, style={
-        'background': '#f4f7ff', 'border': '1px solid #ccd6f0',
-        'borderLeft': '4px solid #2255aa', 'borderRadius': '6px',
-        'padding': '12px 16px', 'fontSize': '13px', 'lineHeight': '1.7',
-        'marginBottom': '16px', 'maxWidth': '900px',
+    return html.Div(children, style={
+        "background": "#f4f7ff", "border": "1px solid #ccd6f0",
+        "borderLeft": "4px solid #2255aa", "borderRadius": "6px",
+        "padding": "12px 16px", "fontSize": "13px", "lineHeight": "1.7",
+        "marginBottom": "16px", "maxWidth": "900px",
     })
 
 

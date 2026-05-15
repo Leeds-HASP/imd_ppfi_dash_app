@@ -1,5 +1,6 @@
 # layouts/main_layout.py
 from dash import dcc, html, dash_table
+from components.map_component import maplibre_css, single_map, compare_maps, mismatch_map
 
 # layout constants
 NAV_H = "84px"
@@ -66,7 +67,9 @@ layout = html.Div(
             ],
         ),
 
+        maplibre_css(),
         dcc.Store(id="selected_lad_store", data=[]),
+        dcc.Store(id="hovered_feature", data=None),
         dcc.Store(id="divergence_selected_lsoa", data=None),
         dcc.Download(id="mismatch_download"),
 
@@ -316,52 +319,13 @@ layout = html.Div(
                                 "width": "100%",
                                 "boxSizing": "border-box",
                             },
-                            children=[
-                                dcc.Graph(
-                                    id="map_single",
-                                    figure={
-                                        "data": [],
-                                        "layout": {
-                                            "xaxis": {"visible": False},
-                                            "yaxis": {"visible": False},
-                                            "paper_bgcolor": "white",
-                                            "plot_bgcolor": "white",
-                                            "annotations": [],
-                                            "margin": {"l": 0, "r": 0, "t": 0, "b": 0},
-                                        },
-                                    },
-                                    style={"flex": 1, "height": "100%", "width": "100%", "minHeight": 0},
-                                    config={
-                                        "scrollZoom": True,
-                                        "toImageButtonOptions": {"filename": "IMD_PPFI_Explorer", "format": "png"},
-                                    },
-                                ),
-                            ],
+                            children=[single_map()],
                         ),
-                        #nismatch map panel, replaces map_container in the same flex slot
+                        # mismatch map panel — replaces map_container in the same flex slot
                         html.Div(
                             id="mismatch_map_panel",
                             style={"display": "none", "flex": 1, "flexDirection": "column", "minHeight": 0, "width": "100%"},
-                            children=[
-                                dcc.Graph(
-                                    id="mismatch_map",
-                                    figure={
-                                        "data": [],
-                                        "layout": {
-                                            "xaxis": {"visible": False}, "yaxis": {"visible": False},
-                                            "paper_bgcolor": "white", "plot_bgcolor": "white",
-                                            "annotations": [],
-                                            "margin": {"l": 0, "r": 0, "t": 0, "b": 0},
-                                        },
-                                    },
-                                    style={"flex": 1, "height": "100%", "width": "100%", "minHeight": 0},
-                                    config={
-                                        "scrollZoom": True,
-                                        "responsive": True,
-                                        "toImageButtonOptions": {"filename": "IMD_PPFI_Explorer_difference_map", "format": "png"},
-                                    },
-                                ),
-                            ],
+                            children=[mismatch_map()],
                         ),
                         #info bar
                         html.Div(
@@ -404,76 +368,7 @@ layout = html.Div(
                     },
                     children=[
                         html.H3("Side-by-side comparison", style={"margin": 0}),
-                        html.Div(
-                            style={
-                                "display": "flex",
-                                "gap": "12px",
-                                "flex": 1,
-                                "height": "100%",
-                                "minHeight": 0,
-                                "boxSizing": "border-box",
-                            },
-                            children=[
-                                html.Div(
-                                    style={
-                                        "flex": 1,
-                                        "display": "flex",
-                                        "flexDirection": "column",
-                                        "minHeight": 0,
-                                        "minWidth": 0,
-                                    },
-                                    children=[
-                                        html.H4("Priority Places for Food Index", style={"margin": "0 0 6px 0"}),
-                                        dcc.Graph(
-                                            id="map_compare_left",
-                                            figure={
-                                                "data": [],
-                                                "layout": {
-                                                    "xaxis": {"visible": False}, "yaxis": {"visible": False},
-                                                    "paper_bgcolor": "white", "plot_bgcolor": "white",
-                                                    "annotations": [],
-                                                    "margin": {"l": 0, "r": 0, "t": 0, "b": 0},
-                                                },
-                                            },
-                                            style={"flex": 1, "height": "100%", "width": "100%", "minHeight": 0},
-                                            config={
-                                                "scrollZoom": True,
-                                                "toImageButtonOptions": {"filename": "IMD_PPFI_Explorer_PPFI", "format": "png"},
-                                            },
-                                        ),
-                                    ],
-                                ),
-                                html.Div(
-                                    style={
-                                        "flex": 1,
-                                        "display": "flex",
-                                        "flexDirection": "column",
-                                        "minHeight": 0,
-                                        "minWidth": 0,
-                                    },
-                                    children=[
-                                        html.H4("Index of Multiple Deprivation", style={"margin": "0 0 6px 0"}),
-                                        dcc.Graph(
-                                            id="map_compare_right",
-                                            figure={
-                                                "data": [],
-                                                "layout": {
-                                                    "xaxis": {"visible": False}, "yaxis": {"visible": False},
-                                                    "paper_bgcolor": "white", "plot_bgcolor": "white",
-                                                    "annotations": [],
-                                                    "margin": {"l": 0, "r": 0, "t": 0, "b": 0},
-                                                },
-                                            },
-                                            style={"flex": 1, "height": "125%", "width": "100%", "minHeight": 0},
-                                            config={
-                                                "scrollZoom": True,
-                                                "toImageButtonOptions": {"filename": "IMD_PPFI_Explorer_IMD", "format": "png"},
-                                            },
-                                        ),
-                                    ],
-                                ),
-                            ],
-                        ),
+                        compare_maps(),
                         # shared info bar below both compare maps
                         html.Div(
                             id="compare_info_bar",
@@ -527,11 +422,39 @@ layout = html.Div(
                                 "lineHeight": "1.6",
                             },
                             children=[
-                                html.Strong("How to use this explorer: "),
-                                "Use the filters below to narrow by local authority, mismatch direction, or minimum "
-                                "decile gap. Select any row in the table to see a full breakdown of PPFI and IMD "
-                                "domain scores for that neighbourhood - the charts and summary appear above the table "
-                                "once a row is selected. Click column headers to sort.",
+                                html.Div([
+                                    html.Strong("How to use this explorer: "),
+                                    "Use the filters below to narrow by local authority, mismatch direction, or minimum "
+                                    "decile gap. Select any row in the table to see a full breakdown of PPFI and IMD "
+                                    "domain scores for that neighbourhood — the charts and summary appear above the table "
+                                    "once a row is selected. Click column headers to sort.",
+                                ]),
+                                html.Div(
+                                    style={"display": "flex", "gap": "16px", "alignItems": "center",
+                                           "marginTop": "10px", "flexWrap": "wrap"},
+                                    children=[
+                                        html.Strong("Row colour key:", style={"fontSize": "12px"}),
+                                        html.Span([
+                                            html.Span(style={"display": "inline-block", "width": "14px", "height": "14px",
+                                                             "background": "#e8f0fb", "border": "1px solid #1d3461",
+                                                             "verticalAlign": "middle", "marginRight": "6px"}),
+                                            html.Span("IMD more deprived (PPFI − IMD > 2 deciles)",
+                                                      style={"fontSize": "12px", "verticalAlign": "middle"}),
+                                        ]),
+                                        html.Span([
+                                            html.Span(style={"display": "inline-block", "width": "14px", "height": "14px",
+                                                             "background": "#fdecea", "border": "1px solid #7b1e1e",
+                                                             "verticalAlign": "middle", "marginRight": "6px"}),
+                                            html.Span("PPFI more deprived (PPFI − IMD < −2 deciles)",
+                                                      style={"fontSize": "12px", "verticalAlign": "middle"}),
+                                        ]),
+                                        html.Span([
+                                            html.Strong("Bold", style={"fontSize": "12px", "marginRight": "6px"}),
+                                            html.Span("Absolute gap ≥ 5 deciles",
+                                                      style={"fontSize": "12px"}),
+                                        ]),
+                                    ],
+                                ),
                             ],
                         ),
                         #domain divergence panel (shown once row selected, above table)

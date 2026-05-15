@@ -21,8 +21,8 @@ def update_compare_domain_options(view, geo, current_ppfi, current_imd):
     ppfi_domains = get_domains_for_single(geo, 'ppfi')
     imd_domains  = get_domains_for_single(geo, 'imd')
 
-    ppfi_opts = [{'label': k.title(), 'value': k} for k in ppfi_domains.keys()]
-    imd_opts  = [{'label': k.title(), 'value': k} for k in imd_domains.keys()]
+    ppfi_opts = [{'label': k.capitalize(), 'value': k} for k in ppfi_domains.keys()]
+    imd_opts  = [{'label': k.capitalize(), 'value': k} for k in imd_domains.keys()]
 
     # keep selections if valid, else default to combined
     ppfi_val = current_ppfi if current_ppfi in ppfi_domains else ('combined' if 'combined' in ppfi_domains else next(iter(ppfi_domains.keys()), None))
