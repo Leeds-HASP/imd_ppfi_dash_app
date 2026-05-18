@@ -36,11 +36,20 @@ layout = html.Div(
                 html.Div(
                     [
                         html.Div(
-                            "Priority Places for Food Index & Index of Multiple Deprivation: Explorer",
+                            [
+                                "Priority Places for Food Index & Index of Multiple Deprivation: Explorer",
+                                html.Span(
+                                    "BETA",
+                                    className="beta-tag",
+                                    title="Beta version — for testing and demonstration only",
+                                ),
+                            ],
                             className="brand-title",
+                            style={"display": "flex", "alignItems": "center", "gap": "10px"},
                         ),
                         html.Div(
-                            "Compare vulnerability patterns across England",
+                            "Compare vulnerability patterns across England · "
+                            "beta release for testing — features may change",
                             className="brand-subtitle",
                         ),
                     ]
