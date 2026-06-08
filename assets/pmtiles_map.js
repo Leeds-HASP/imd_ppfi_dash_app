@@ -24,11 +24,19 @@
   };
   const DECILE_BINS = [1,2,3,4,5,6,7,8,9,10];
 
+  // CartoDB Positron split into "no labels" (rendered below the choropleth) and
+  // "only labels" (rendered above) so place names stay legible through the fill.
   const BASEMAP_TILES = [
-    "https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-    "https://cartodb-basemaps-b.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-    "https://cartodb-basemaps-c.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-    "https://cartodb-basemaps-d.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
+    "https://cartodb-basemaps-a.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png",
+    "https://cartodb-basemaps-b.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png",
+    "https://cartodb-basemaps-c.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png",
+    "https://cartodb-basemaps-d.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png",
+  ];
+  const LABELS_TILES = [
+    "https://cartodb-basemaps-a.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png",
+    "https://cartodb-basemaps-b.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png",
+    "https://cartodb-basemaps-c.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png",
+    "https://cartodb-basemaps-d.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png",
   ];
   const BASEMAP_ATTRIB =
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
@@ -171,24 +179,26 @@
       style: {
         version: 8,
         sources: {
-          basemap: { type: "raster", tiles: BASEMAP_TILES, tileSize: 256,
-                     attribution: BASEMAP_ATTRIB },
-          tiles:   { type: "vector", url: "pmtiles://" + TILE_URL },
+          basemap:        { type: "raster", tiles: BASEMAP_TILES, tileSize: 256,
+                            attribution: BASEMAP_ATTRIB },
+          basemap_labels: { type: "raster", tiles: LABELS_TILES, tileSize: 256 },
+          tiles:          { type: "vector", url: "pmtiles://" + TILE_URL },
         },
         layers: [
+          // 1) basemap without labels (roads, water, parks)
           { id: "basemap",          type: "raster", source: "basemap" },
-          // LAD fill is always present so clicks land on it. Opacity switches
-          // between "choropleth" and "ghost" depending on mode.
+          // 2) choropleth fills (slightly translucent so the basemap shows through)
           { id: "lad-fill",         type: "fill", source: "tiles", "source-layer": "lad",
-            paint: {"fill-color":"#cccccc","fill-opacity":0.85} },
+            paint: {"fill-color":"#cccccc","fill-opacity":0.7} },
           { id: "lad-line",         type: "line", source: "tiles", "source-layer": "lad",
             paint: {"line-color":"#000","line-width":0.5} },
-          // LSOA layers — visibility toggled by mode
           { id: "lsoa-fill",        type: "fill", source: "tiles", "source-layer": "lsoa",
-            paint: {"fill-color":"#cccccc","fill-opacity":0.9}, layout: {visibility:"none"} },
+            paint: {"fill-color":"#cccccc","fill-opacity":0.75}, layout: {visibility:"none"} },
           { id: "lsoa-line",        type: "line", source: "tiles", "source-layer": "lsoa",
             paint: {"line-color":"#ffffff","line-width":0.2}, layout: {visibility:"none"} },
-          // Thick highlight around selected LADs — drawn last so it sits on top
+          // 3) place-name labels rendered on top of the choropleth
+          { id: "basemap-labels",   type: "raster", source: "basemap_labels" },
+          // 4) selected-LAD highlight — drawn last so the outline sits on top
           { id: "lad-selected-line",type: "line", source: "tiles", "source-layer": "lad",
             paint: {"line-color":"#000","line-width":2.5}, filter: ["in", ["get","id"], ["literal", []]] },
         ],
@@ -321,7 +331,7 @@
       // LAD fill: choropleth when primary, ghost (clickable but invisible) otherwise
       if (ladPrimary) {
         map.setPaintProperty("lad-fill", "fill-color", paintExpr("lad", true));
-        map.setPaintProperty("lad-fill", "fill-opacity", 0.85);
+        map.setPaintProperty("lad-fill", "fill-opacity", 0.7);
       } else {
         map.setPaintProperty("lad-fill", "fill-color", "#ffffff");
         map.setPaintProperty("lad-fill", "fill-opacity", 0.01);   // ~invisible, still clickable

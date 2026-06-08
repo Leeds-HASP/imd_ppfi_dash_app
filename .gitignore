@@ -19,3 +19,6 @@ venv/
 
 # pmtiles
 *.pmtiles
+
+# big lad geojson
+Lower_layer_Super_Output_Areas_December_2021_Boundaries_EW_BGC_V5_-3761339731474027792.geojson

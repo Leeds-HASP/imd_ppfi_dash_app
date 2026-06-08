@@ -22,6 +22,7 @@ from utils.constants import (
     IMD_DOMAINS_LSOA, IMD_DOMAINS_LAD,
 )
 
+SRC_LSOA_fullres = "data/Lower_layer_Super_Output_Areas_December_2021_Boundaries_EW_BGC_V5_-3761339731474027792.geojson"
 SRC_LSOA  = "data/ppfi_imd_lsoa_england.geojson"
 SRC_LAD   = "data/ppfi_imd_lad_england.geojson"
 MISMATCH  = "data/imd_ppfi_mismatch.csv"
@@ -40,6 +41,19 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
 
     lsoa = gpd.read_file(SRC_LSOA).set_crs(27700, allow_override=True).to_crs(4326)
+
+    # Full-res file from the ONS geoportal may already be in EPSG:4326 — only
+    # assume 27700 if no CRS is set, otherwise just reproject.
+    lsoa_fullres = gpd.read_file(SRC_LSOA_fullres)
+    if lsoa_fullres.crs is None:
+        lsoa_fullres = lsoa_fullres.set_crs(27700)
+    lsoa_fullres = lsoa_fullres.to_crs(4326)
+
+    # set geometry to the full-res version, which has more vertices and thus looks nicer when zoomed in
+    lsoa = lsoa.drop(columns="geometry").merge(
+        lsoa_fullres[["LSOA21CD", "geometry"]], on="LSOA21CD", how="left")
+    lsoa = gpd.GeoDataFrame(lsoa, geometry="geometry", crs="EPSG:4326")
+
     lad  = gpd.read_file(SRC_LAD ).set_crs(27700, allow_override=True).to_crs(4326)
 
     lsoa["id"]   = lsoa["LSOA21CD"].astype(str).str.strip().str.upper()
