@@ -149,7 +149,7 @@ def switch_map_type(map_type, view):
     }
 
     if map_type == "mismatch_map":
-        # Difference map is LSOA-only and driven by its own threshold filter.
+        # LSOA-only; uses its own threshold filter
         return (
             hide, show_mismatch_panel, show,
             hide, hide, hide, hide, hide,

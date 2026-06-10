@@ -1,9 +1,4 @@
-"""Map mounts and their per-map dcc.Stores.
-
-Each factory returns a Div the JS in assets/pmtiles_map.js will discover and
-turn into a MapLibre map. Stores listed here are populated by
-callbacks/pmtiles_callbacks.py and forwarded to JS by pmtiles_clientside.py.
-"""
+"""Map mounts and per-map dcc.Stores."""
 from dash import html, dcc
 
 _MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
@@ -22,7 +17,6 @@ def _map_div(map_id, palette, drilldown=False, style=None):
 
 
 def maplibre_css():
-    """Inject the MapLibre stylesheet once. Place near the top of the layout."""
     return html.Link(rel="stylesheet", href=_MAPLIBRE_CSS)
 
 

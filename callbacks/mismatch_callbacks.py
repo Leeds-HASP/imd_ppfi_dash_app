@@ -84,11 +84,6 @@ def _join_labels(labels):
 
 
 def _narrative(lsoa_name, ppfi_dec, imd_dec, diff, domain_row):
-    """Build the explanation panel using the canonical helpers in figures.py.
-
-    _hover_narrative produces a multi-line HTML string (lines separated by
-    <br>); _alignment_band labels the magnitude/direction of mismatch.
-    """
     row = dict(domain_row or {})
     row["ppfi_combined"] = None if ppfi_dec is None else ppfi_dec
     row["imd_combined"]  = None if imd_dec  is None else imd_dec

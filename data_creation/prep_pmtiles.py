@@ -1,14 +1,7 @@
-"""Build the inputs that the PMTiles map needs.
-
-Writes three files into data/pmtiles/:
-  lsoa.geojson  — minimal geometry + {id, name, lad_cd} for tippecanoe
-  lad.geojson   — minimal geometry + {id, name} for tippecanoe
-  domains.json  — every domain value keyed by feature id, plus a "_mismatch"
-                  pseudo-domain (LSOA abs_diff, LAD mean abs_diff)
-
-Geometry rides in the tiles; values ride in domains.json. The map re-styles by
-fetching a new lookup, never new geometry.
-"""
+# data_creation/prep_pmtiles.py
+#
+# Writes data/pmtiles/{lsoa,lad}.geojson for tippecanoe and domains.json keyed
+# by feature id. Geometry lives in the tiles, values in domains.json.
 import json
 import os
 import sys
@@ -30,7 +23,6 @@ OUT_DIR   = "data/pmtiles"
 
 
 def _to_lookup(df, id_col, val_col):
-    """{id: float | None} skipping NaN."""
     out = {}
     for _id, v in zip(df[id_col], df[val_col]):
         out[str(_id)] = None if pd.isna(v) else float(v)
@@ -42,14 +34,12 @@ def main():
 
     lsoa = gpd.read_file(SRC_LSOA).set_crs(27700, allow_override=True).to_crs(4326)
 
-    # Full-res file from the ONS geoportal may already be in EPSG:4326 — only
-    # assume 27700 if no CRS is set, otherwise just reproject.
+    # swap in the full-res ONS geometry for nicer zoom-in detail
     lsoa_fullres = gpd.read_file(SRC_LSOA_fullres)
     if lsoa_fullres.crs is None:
         lsoa_fullres = lsoa_fullres.set_crs(27700)
     lsoa_fullres = lsoa_fullres.to_crs(4326)
 
-    # set geometry to the full-res version, which has more vertices and thus looks nicer when zoomed in
     lsoa = lsoa.drop(columns="geometry").merge(
         lsoa_fullres[["LSOA21CD", "geometry"]], on="LSOA21CD", how="left")
     lsoa = gpd.GeoDataFrame(lsoa, geometry="geometry", crs="EPSG:4326")
@@ -61,8 +51,7 @@ def main():
     lad["id"]    = lad["LAD24CD"].astype(str).str.strip().str.upper()
     lad["name"]  = lad.get("LAD24NM_y", lad.get("LAD24NM", lad["id"]))
 
-    # join LAD code onto LSOA — required so the JS layer can filter
-    # LSOAs by selected LAD without an extra lookup
+    # attach lad_cd to each LSOA so the map can filter LSOAs by selected LAD
     mismatch = pd.read_csv(MISMATCH)
     lsoa_to_lad = (
         mismatch[["lsoa21cd", "lad24cd"]]
@@ -75,7 +64,6 @@ def main():
     )
     lsoa = lsoa.merge(lsoa_to_lad, on="id", how="left")
 
-    # numeric coercion for all domain columns (parallel of data_loader.py)
     for col in lsoa.columns:
         if col.startswith(("pp_", "imd_")):
             lsoa[col] = pd.to_numeric(lsoa[col], errors="coerce")
@@ -84,13 +72,11 @@ def main():
                            "education_", "health_", "crime_", "barriers_", "living_")):
             lad[col] = pd.to_numeric(lad[col], errors="coerce")
 
-    # tile-bound geojsons — minimal properties
     lsoa[["id", "name", "lad_cd", "geometry"]].to_file(
         f"{OUT_DIR}/lsoa.geojson", driver="GeoJSON")
     lad[["id", "name", "geometry"]].to_file(
         f"{OUT_DIR}/lad.geojson", driver="GeoJSON")
 
-    # domain lookups
     domains = {"ppfi": {}, "imd": {}}
     for dname, col in PPFI_DOMAINS_LSOA.items():
         domains["ppfi"].setdefault(dname, {})["lsoa"] = _to_lookup(lsoa, "id", col) if col in lsoa else {}
@@ -101,9 +87,7 @@ def main():
     for dname, col in IMD_DOMAINS_LAD.items():
         domains["imd"].setdefault(dname, {})["lad"]   = _to_lookup(lad,  "id", col) if col in lad  else {}
 
-    # mismatch pseudo-domain
-    #   LSOA level: |PPFI decile − IMD decile|
-    #   LAD level:  mean of the LSOA gap inside each LAD
+    # mismatch: LSOA = |PPFI decile − IMD decile|, LAD = mean LSOA gap
     mm = lsoa[["id", "lad_cd", "pp_dec_combined", "imd_decile"]].copy()
     mm["abs_diff"] = (mm["pp_dec_combined"] - mm["imd_decile"]).abs()
     lad_mismatch = mm.dropna(subset=["lad_cd"]).groupby("lad_cd")["abs_diff"].mean()

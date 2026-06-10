@@ -14,8 +14,7 @@ def load_cookies_html() -> str:
     
 cookies_html = load_cookies_html()
 
-# Tile archive URL — set via env var on Azure (Blob Storage), defaults to a
-# local tile server for `python3 index.py` development.
+# PMTiles archive URL; env var on Azure, falls back to local tile server in dev
 PMTILES_URL = os.environ.get("PMTILES_URL", "http://localhost:8080/england.pmtiles")
 
 app = Dash(

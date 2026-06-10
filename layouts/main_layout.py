@@ -36,20 +36,11 @@ layout = html.Div(
                 html.Div(
                     [
                         html.Div(
-                            [
-                                "Priority Places for Food Index & Index of Multiple Deprivation: Explorer",
-                                html.Span(
-                                    "BETA",
-                                    className="beta-tag",
-                                    title="Beta version — for testing and demonstration only",
-                                ),
-                            ],
+                            "Priority Places for Food Index & Index of Multiple Deprivation: Explorer",
                             className="brand-title",
-                            style={"display": "flex", "alignItems": "center", "gap": "10px"},
                         ),
                         html.Div(
-                            "Compare vulnerability patterns across England · "
-                            "beta release for testing — features may change",
+                            "Compare vulnerability patterns across England",
                             className="brand-subtitle",
                         ),
                     ]
@@ -701,8 +692,22 @@ layout = html.Div(
 
                         # data sources 
                         html.Hr(style={"borderColor": "#e0e4f0", "margin": "4px 0 16px 0"}),
-                        html.P(html.I("Data sources: PPFI V2.1 (Pontin et al. 2024) - English IMD 2025 (MHCLG) - LSOA 2021 and LAD 2024 boundaries (ONS)."),
-                               style={"fontSize": "12px", "color": "#888", "marginBottom": "16px"}),
+                        html.P(
+                            [
+                                html.I("Data sources: PPFI V2.1 (Pontin et al. 2024) - English IMD 2025 (MHCLG) - LSOA 2021 and LAD 2024 boundaries (ONS). "),
+                                "Full dataset: ",
+                                html.A(
+                                    "data.hasp.ac.uk/browser/dataset/5276/0",
+                                    href="https://data.hasp.ac.uk/browser/dataset/5276/0",
+                                    target="_blank",
+                                    rel="noopener noreferrer",
+                                    **{"aria-label": "PPFI-IMD dataset on HASP data portal, opens in a new tab"},
+                                    style={"color": "var(--brand-green)"},
+                                ),
+                                ".",
+                            ],
+                            style={"fontSize": "12px", "color": "#888", "marginBottom": "16px"},
+                        ),
                         html.H4("Suggested citation", style={"marginBottom": "8px", "color": "#1a1a2e"}),
                         html.Div(
                             style={
@@ -727,19 +732,24 @@ layout = html.Div(
                                     **{"aria-label": "Healthy and Sustainable Places Data Service website, opens in a new tab"},
                                     style={"color": "var(--brand-green)"},
                                 ),
-                                ". [Accessed: ",
-                                html.Span(
-                                    id="citation_date",
-                                    children="[date accessed]",
-                                    style={"fontStyle": "normal", "color": "#888"},
-                                ),
-                                "].",
+                                ".",
                             ],
                         ),
                         html.P(
                             "Please also cite the underlying data: Pontin, F. et al. (2024) PPFI V2.1; "
                             "MHCLG (2025) English Indices of Deprivation 2025.",
                             style={"fontSize": "12px", "color": "#888", "marginTop": "8px"},
+                        ),
+
+                        # funding statement
+                        html.H4("Funding", style={"marginTop": "20px", "marginBottom": "8px", "color": "#1a1a2e"}),
+                        html.P(
+                            "This work was part of the FIO-Food project, funded through the "
+                            "Transforming the UK Food System for Healthy People and a Healthy Environment "
+                            "SPF Programme, delivered by UKRI, in partnership with the Global Food "
+                            "Security Programme, BBSRC, ESRC, MRC, NERC, Defra, DHSC, OHID, Innovate UK "
+                            "and FSA (FIO-Food award: BB/W018021/1).",
+                            style={"fontSize": "12px", "color": "#666", "lineHeight": "1.6"},
                         ),
                     ],
                 ),

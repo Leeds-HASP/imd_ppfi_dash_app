@@ -1,16 +1,10 @@
-"""Forward dcc.Store values into the MapLibre maps.
-
-Each clientside callback reads a map's stores and calls the per-map update
-function the JS module registered on window.pmtilesMaps. This indirection is
-required because dcc.Store data lives in React state, not in the DOM.
-"""
+# callbacks/pmtiles_clientside.py
 from dash import Input, Output
 from app import app
 
 
 def _bridge(mount_id, lookup_id, filter_id, geography_id=None, palette_id=None,
             selected_id=None):
-    """Wire a clientside callback that pushes Store data into window.pmtilesMaps."""
     inputs = [Input(lookup_id, "data"), Input(filter_id, "data")]
     args   = ["lookup", "filter"]
     if geography_id:
@@ -28,7 +22,6 @@ def _bridge(mount_id, lookup_id, filter_id, geography_id=None, palette_id=None,
             return window.dash_clientside.no_update;
         }}
     """
-    # sink is the lookup store itself; we always return no_update so nothing is written
     app.clientside_callback(
         js,
         Output(lookup_id, "data", allow_duplicate=True),
@@ -56,8 +49,7 @@ _bridge("pmtiles_mismatch",
         geography_id="mismatch_geography")
 
 
-# Mirror selected_lad_store into a global so the JS click handler can read it
-# without round-tripping through a Dash callback.
+# mirror selected_lad_store onto window for the JS click handler
 app.clientside_callback(
     """
     function(data) {

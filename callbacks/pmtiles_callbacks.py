@@ -1,14 +1,4 @@
-"""Server callbacks that drive the MapLibre maps.
-
-Each map listens to two stores: a *_lookup ({"lsoa": {id: value}, "lad": ...})
-and a *_filter ({"lsoa": [ids] | None, "lad": [ids] | None}). The JS in
-assets/pmtiles_map.js paints fill-color from the lookup and applies the filter
-as an ["in", id, ...] expression. `None` means no filter on that level.
-
-Lookup values come from data/pmtiles/domains.json (built by
-data_creation/prep_pmtiles.py). Filters are derived from the in-memory
-GeoDataFrames in utils/data.
-"""
+# callbacks/pmtiles_callbacks.py
 import json
 import os
 
@@ -25,13 +15,11 @@ from utils.constants import (
 )
 from utils.figures import _hover_narrative
 
-# ---------------------------------------------------------------- domain JSON
 _DOMAINS_PATH = "data/pmtiles/domains.json"
 if os.path.exists(_DOMAINS_PATH):
     with open(_DOMAINS_PATH) as f:
         _DOMAINS = json.load(f)
 else:
-    # graceful fallback: prep_pmtiles.py hasn't been run yet
     _DOMAINS = {"ppfi": {}, "imd": {}, "_mismatch": {"lsoa": {}, "lad": {}}}
 
 
@@ -62,7 +50,6 @@ def _to_int_list(v):
 
 
 def _lsoa_ids_for_deciles(dataset, domain, deciles):
-    """LSOA ids whose decile value is in `deciles`. Empty list -> None (no filter)."""
     deciles = _to_int_list(deciles)
     if not deciles:
         return None
@@ -73,21 +60,19 @@ def _lsoa_ids_for_deciles(dataset, domain, deciles):
 
 
 def _lad_ids_for_percentile(dataset, domain, percent):
-    """LAD ids in the top `percent` of rank (1 = most deprived). None -> no filter."""
     if percent is None or percent >= 100:
         return None
     col = _lad_col(dataset, domain)
     if col not in gdf_lad.columns:
         return None
     max_rank = gdf_lad[col].max()
-    if max_rank is None or max_rank != max_rank:   # NaN guard
+    if max_rank is None or max_rank != max_rank:
         return None
     cutoff = (percent / 100.0) * max_rank
     return gdf_lad.loc[gdf_lad[col] <= cutoff, "id"].tolist()
 
 
 def _selected_lad_ids(selected_lads):
-    """Normalise selected_lad_store payload to a list of LAD ids."""
     if not selected_lads:
         return []
     if isinstance(selected_lads, dict):
@@ -96,22 +81,18 @@ def _selected_lad_ids(selected_lads):
 
 
 def _lsoa_ids_within_lads(lad_ids):
-    """All LSOA ids whose lad_cd is in `lad_ids`."""
     if not lad_ids or "lad_cd" not in gdf_lsoa.columns:
         return None
     return gdf_lsoa.loc[gdf_lsoa["lad_cd"].isin(lad_ids), "id"].tolist()
 
 
 def _intersect(a, b):
-    """Intersect two id lists, treating None as 'no filter on this axis'."""
     if a is None: return b
     if b is None: return a
     return list(set(a) & set(b))
 
 
-# ============================================================================
-# SINGLE MAP — view "map", map_type "single"
-# ============================================================================
+# single map
 @app.callback(
     Output("single_lookup", "data"),
     Input("dataset_selector", "value"),
@@ -147,12 +128,10 @@ def push_single_geography(geography):
 
 @app.callback(Output("single_palette", "data"), Input("dataset_selector", "value"))
 def push_single_palette(dataset):
-    return dataset   # "ppfi" or "imd" — matches PALETTES key in pmtiles_map.js
+    return dataset
 
 
-# Manually flipping geography back to LAD clears any LSOA-drilldown selection.
-# (Drilldown clicks set geography to "lsoa" + selected_lad_store at the same
-# time via set_props in JS, so we only clear when the user moves to "lad".)
+# flipping geography to LAD clears any drilldown selection
 @app.callback(
     Output("selected_lad_store", "data", allow_duplicate=True),
     Input("geography_selector", "value"),
@@ -165,9 +144,7 @@ def clear_selection_on_lad_view(geography, current):
     raise PreventUpdate
 
 
-# ============================================================================
-# COMPARE MAPS — view "compare"
-# ============================================================================
+# compare maps
 @app.callback(
     Output("compare_left_lookup",  "data"),
     Output("compare_right_lookup", "data"),
@@ -208,11 +185,7 @@ def push_compare_geography(geography):
     return geography
 
 
-# ============================================================================
-# MISMATCH MAP — view "map", map_type "mismatch_map"
-# LSOA level shows |PPFI decile − IMD decile|. LAD level shows the mean LSOA
-# gap inside each LAD. The threshold slider filters by that same metric.
-# ============================================================================
+# mismatch map (LSOA-only)
 @app.callback(Output("mismatch_lookup", "data"), Input("view_selector", "value"))
 def push_mismatch_lookup(_view):
     payload = dict(_DOMAINS.get("_mismatch") or {"lsoa": {}, "lad": {}})
@@ -222,7 +195,6 @@ def push_mismatch_lookup(_view):
 
 @app.callback(Output("mismatch_geography", "data"), Input("view_selector", "value"))
 def push_mismatch_geography(_view):
-    # Difference map is LSOA-only — ignore the sidebar toggle here.
     return "lsoa"
 
 
@@ -238,9 +210,7 @@ def push_mismatch_filter(threshold):
     return {"lsoa": ids, "lad": None}
 
 
-# ============================================================================
-# DOMAIN DROPDOWN OPTIONS (moved from map_callbacks.py)
-# ============================================================================
+# domain dropdown options
 def _get_domains_for_single(geo, dataset):
     if geo == "lsoa" and dataset == "ppfi":  return PPFI_DOMAINS_LSOA
     if geo == "lsoa" and dataset == "imd":   return IMD_DOMAINS_LSOA
@@ -273,17 +243,13 @@ def update_domain_options(view, geo, dataset, current_domain):
     return opts, current_domain
 
 
-# ============================================================================
-# INFO BAR NARRATIVE — driven by hover, falls back to current LAD selection
-# Narrative text comes from utils.figures._hover_narrative.
-# ============================================================================
+# info bar narrative — hover wins, falls back to last selected LAD
 _N_LADS     = len(gdf_lad)
 _LSOA_NAMES = dict(zip(gdf_lsoa["id"].astype(str), gdf_lsoa.get("LSOA21NM_x", gdf_lsoa["id"])))
 _LAD_NAMES  = dict(zip(gdf_lad["id"].astype(str),  gdf_lad.get("LAD24NM_y",  gdf_lad.get("LAD24NM", gdf_lad["id"]))))
 
 
 def _row_for(level, fid):
-    """Build the row dict _hover_narrative expects (with ppfi_combined / imd_combined / diff)."""
     src = gdf_lad if level == "lad" else gdf_lsoa
     match = src[src["id"] == fid]
     if match.empty:

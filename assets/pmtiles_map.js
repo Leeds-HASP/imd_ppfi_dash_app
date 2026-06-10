@@ -1,16 +1,5 @@
-// MapLibre + PMTiles choropleth, configured at runtime by Dash stores.
-//
-// Each mount is <div class="pmtiles-map" id="..."> with two data attributes:
-//   data-palette    initial palette name (ppfi | imd | mismatch)
-//   data-drilldown  "1" to enable LAD-click drilldown
-//
-// Server callbacks push state via window.pmtilesPush(mountId, patch). Patch
-// keys: lookup, filter, geography, palette, selected. LAD clicks and the
-// Clear button mutate selected_lad_store + geography_selector via set_props.
+// assets/pmtiles_map.js
 (function () {
-  // ---------------------------------------------------------------- config ----
-  // window.PMTILES_URL is injected by app.py (Dash index_string) from the
-  // PMTILES_URL env var. Falls back to the local dev tile server.
   const TILE_URL = (typeof window !== "undefined" && window.PMTILES_URL)
                  || "http://localhost:8080/england.pmtiles";
 
@@ -24,8 +13,6 @@
   };
   const DECILE_BINS = [1,2,3,4,5,6,7,8,9,10];
 
-  // CartoDB Positron split into "no labels" (rendered below the choropleth) and
-  // "only labels" (rendered above) so place names stay legible through the fill.
   const BASEMAP_TILES = [
     "https://cartodb-basemaps-a.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png",
     "https://cartodb-basemaps-b.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png",
@@ -41,7 +28,6 @@
   const BASEMAP_ATTRIB =
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-  // ----------------------------------------------------------------- deps -----
   const CDN = [
     "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js",
     "https://unpkg.com/pmtiles@3.2.1/dist/pmtiles.js",
@@ -63,7 +49,6 @@
     return depsReady;
   }
 
-  // ----------------------------------------------------- color interpolation --
   function hexToRgb(hex) {
     const h = hex.replace("#", "");
     return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
@@ -92,7 +77,7 @@
     return {mode: "decile", vmin: 1, vmax: 10};
   }
 
-  // ============================ legend overlay ==============================
+  // legend overlay
   function buildLegend(host) {
     const el = document.createElement("div");
     el.className = "pmtiles-legend";
@@ -120,7 +105,7 @@
     el.querySelector(".pmtiles-legend__hi").textContent = Math.round(cls.vmax);
   }
 
-  // ============================ title pill ==================================
+  // title pill
   function buildTitle(host) {
     const el = document.createElement("div");
     el.className = "pmtiles-title";
@@ -134,7 +119,7 @@
     el.textContent = text;
   }
 
-  // ============================ selection chip ==============================
+  // selection chip
   function buildSelectionChip(host, onClear) {
     const el = document.createElement("div");
     el.className = "pmtiles-chip";
@@ -152,7 +137,6 @@
     else label.textContent = `${selected.length} LADs selected`;
   }
 
-  // -------------------------- registry for Dash bridge --------------------------
   window.pmtilesMaps = window.pmtilesMaps || {};
   window.__pmtilesPending = window.__pmtilesPending || {};
   window.pmtilesPush = function (mountId, patch) {
@@ -162,7 +146,6 @@
     window.__pmtilesPending[mountId] = Object.assign(cur, patch);
   };
 
-  // ----------------------------------------------------- per-mount lifecycle --
   function createMap(el) {
     let paletteName = el.dataset.palette || "ppfi";
     let palette = PALETTES[paletteName] || PALETTES.ppfi;
@@ -171,7 +154,7 @@
     let lookup    = {lsoa: {}, lad: {}};
     let filter    = {lsoa: null, lad: null};
     let geography = "lsoa";
-    let selected  = [];                       // [{lad_id, lad_name}, ...]
+    let selected  = [];
     let activeClass = null;
 
     const map = new maplibregl.Map({
@@ -185,9 +168,7 @@
           tiles:          { type: "vector", url: "pmtiles://" + TILE_URL },
         },
         layers: [
-          // 1) basemap without labels (roads, water, parks)
           { id: "basemap",          type: "raster", source: "basemap" },
-          // 2) choropleth fills (slightly translucent so the basemap shows through)
           { id: "lad-fill",         type: "fill", source: "tiles", "source-layer": "lad",
             paint: {"fill-color":"#cccccc","fill-opacity":0.7} },
           { id: "lad-line",         type: "line", source: "tiles", "source-layer": "lad",
@@ -196,9 +177,9 @@
             paint: {"fill-color":"#cccccc","fill-opacity":0.75}, layout: {visibility:"none"} },
           { id: "lsoa-line",        type: "line", source: "tiles", "source-layer": "lsoa",
             paint: {"line-color":"#ffffff","line-width":0.2}, layout: {visibility:"none"} },
-          // 3) place-name labels rendered on top of the choropleth
+          // labels rendered above the choropleth so place names stay legible
           { id: "basemap-labels",   type: "raster", source: "basemap_labels" },
-          // 4) selected-LAD highlight — drawn last so the outline sits on top
+          // selected-LAD highlight, drawn last so the outline sits on top
           { id: "lad-selected-line",type: "line", source: "tiles", "source-layer": "lad",
             paint: {"line-color":"#000","line-width":2.5}, filter: ["in", ["get","id"], ["literal", []]] },
         ],
@@ -210,7 +191,7 @@
     const legendEl = buildLegend(el);
     const chipEl = buildSelectionChip(el, () => clearSelection());
 
-    // ------------------------- popup --------------------------------------
+    // popup
     const popup = new maplibregl.Popup({closeButton:false, closeOnClick:false, maxWidth:"280px"});
     let lastHoverKey = null;
     function pushHover(level, feature) {
@@ -254,9 +235,6 @@
       }
       popup.setLngLat(e.lngLat).setHTML(`<div class="pmtiles-tip">${header}${body}${hint}</div>`).addTo(map);
     }
-    // Hover priority: LSOA tip wins when LSOAs are the primary layer; LAD tip
-    // when LADs are. Both layers' handlers fire on overlap, but the second-
-    // dispatched one's setHTML overwrites the first.
     map.on("mousemove", "lad-fill",  (e) => {
       if (isLadPrimary())      { map.getCanvas().style.cursor = drilldown ? "pointer" : ""; tip(e, "lad"); pushHover("lad", e.features[0]); }
       else if (drilldown)      { map.getCanvas().style.cursor = "pointer"; }
@@ -267,7 +245,6 @@
     map.on("mouseleave", "lad-fill",  () => { map.getCanvas().style.cursor = ""; if (isLadPrimary()) { popup.remove(); pushHover(null, null); } });
     map.on("mouseleave", "lsoa-fill", () => { if (!isLadPrimary()) { popup.remove(); pushHover(null, null); } });
 
-    // ------------------------- click → toggle selection -------------------
     if (drilldown) {
       map.on("click", "lad-fill", (e) => {
         const f = e.features[0]; if (!f) return;
@@ -288,7 +265,6 @@
       sp("geography_selector",  {value: next.length ? "lsoa" : "lad"});
     }
 
-    // ------------------------- paint / filter / visibility -----------------
     function isLadPrimary() { return geography === "lad" && selected.length === 0; }
 
     function paintExpr(level, primary) {
@@ -318,25 +294,22 @@
 
     function applyVisibility() {
       const ladPrimary = isLadPrimary();
-      // LSOA layers visible whenever LADs are NOT the primary view
       map.setLayoutProperty("lsoa-fill", "visibility", ladPrimary ? "none" : "visible");
       map.setLayoutProperty("lsoa-line", "visibility", ladPrimary ? "none" : "visible");
-      // Selected-LAD highlight
       const selIds = selected.map(s => s.lad_id);
       map.setFilter("lad-selected-line", ["in", ["get","id"], ["literal", selIds]]);
     }
     function applyPaint() {
       activeClass = null;
       const ladPrimary = isLadPrimary();
-      // LAD fill: choropleth when primary, ghost (clickable but invisible) otherwise
+      // LAD fill: choropleth when primary, near-transparent (clickable) otherwise
       if (ladPrimary) {
         map.setPaintProperty("lad-fill", "fill-color", paintExpr("lad", true));
         map.setPaintProperty("lad-fill", "fill-opacity", 0.7);
       } else {
         map.setPaintProperty("lad-fill", "fill-color", "#ffffff");
-        map.setPaintProperty("lad-fill", "fill-opacity", 0.01);   // ~invisible, still clickable
+        map.setPaintProperty("lad-fill", "fill-opacity", 0.01);
       }
-      // LSOA fill: always paint (cheap if no values); shown when not lad-primary
       map.setPaintProperty("lsoa-fill", "fill-color", paintExpr("lsoa", !ladPrimary));
       updateLegend(legendEl, activeClass, palette);
       updateChip(chipEl, selected);
@@ -347,8 +320,7 @@
       const ladIds  = filter.lad;
       map.setFilter("lsoa-fill", lsoaIds == null ? null : ["in", ["get","id"], ["literal", lsoaIds]]);
       map.setFilter("lsoa-line", lsoaIds == null ? null : ["in", ["get","id"], ["literal", lsoaIds]]);
-      // lad-fill is always clickable across all LADs — only lad-line follows
-      // the rank-percentile filter so user keeps an accurate visual cue.
+      // lad-fill stays unfiltered (always clickable); lad-line follows the percentile filter
       map.setFilter("lad-line", ladIds == null ? null : ["in", ["get","id"], ["literal", ladIds]]);
     }
     function applyAll() { applyVisibility(); applyPaint(); applyFilter(); }
@@ -385,7 +357,6 @@
     new ResizeObserver(() => map.resize()).observe(el);
   }
 
-  // ---------------------------- mount discovery -----------------------------
   const seen = new WeakSet();
   setInterval(async () => {
     const mounts = document.querySelectorAll(".pmtiles-map");
