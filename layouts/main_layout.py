@@ -744,11 +744,7 @@ layout = html.Div(
                         # funding statement
                         html.H4("Funding", style={"marginTop": "20px", "marginBottom": "8px", "color": "#1a1a2e"}),
                         html.P(
-                            "This work was part of the FIO-Food project, funded through the "
-                            "Transforming the UK Food System for Healthy People and a Healthy Environment "
-                            "SPF Programme, delivered by UKRI, in partnership with the Global Food "
-                            "Security Programme, BBSRC, ESRC, MRC, NERC, Defra, DHSC, OHID, Innovate UK "
-                            "and FSA (FIO-Food award: BB/W018021/1).",
+                            "This work was funded through the Transforming the UK Food System for Healthy People and a Healthy Environment SPF Programme, delivered by UKRI, in partnership with the Global Food Security Programme, BBSRC, ESRC, MRC, NERC, Defra, DHSC, OHID, Innovate UK and FSA. Grant award BB/W018021/1, with additional support from IGD (the Institute of Grocery Distribution) through their Social Impact programmes on healthy and sustainable diets. The FIO Food (Food Insecurity in people living with Obesity) and DIO Food additional funding stream (Diet and Health Inequalities); these projects comprise 7 work packages, delivered by the partner institutions within the consortium.",
                             style={"fontSize": "12px", "color": "#666", "lineHeight": "1.6"},
                         ),
                     ],
