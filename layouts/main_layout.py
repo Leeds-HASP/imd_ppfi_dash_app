@@ -445,7 +445,7 @@ layout = html.Div(
                                             html.Span(style={"display": "inline-block", "width": "14px", "height": "14px",
                                                              "background": "#fdecea", "border": "1px solid #7b1e1e",
                                                              "verticalAlign": "middle", "marginRight": "6px"}),
-                                            html.Span("PPFI more deprived (PPFI − IMD < −2 deciles)",
+                                            html.Span("PPFI more priority (PPFI − IMD < −2 deciles)",
                                                       style={"fontSize": "12px", "verticalAlign": "middle"}),
                                         ]),
                                         html.Span([
@@ -468,7 +468,7 @@ layout = html.Div(
                                     className="domain-bars-row",
                                     children=[
                                         html.Div(className="domain-bar-col", children=[
-                                            html.H5("PPFI domains (decile; 1 = most deprived)"),
+                                            html.H5("PPFI domains (decile; 1 = highest priority)"),
                                             dcc.Graph(id="domain_bar_ppfi",
                                                       style={"height": "300px"},
                                                       config={"displayModeBar": False}),
@@ -505,7 +505,7 @@ layout = html.Div(
                                         options=[
                                             {"label": "All",                 "value": "all"},
                                             {"label": "IMD more deprived",   "value": "high_imd"},
-                                            {"label": "PPFI more deprived",  "value": "high_ppfi"},
+                                            {"label": "PPFI more priority",  "value": "high_ppfi"},
                                             {"label": "Broadly aligned",     "value": "aligned"},
                                         ],
                                         value="all", clearable=False,

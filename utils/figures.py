@@ -94,7 +94,7 @@ def _hover_narrative(row, geography: str, n_lad: int = 0) -> str:
         if diff > 3:
             lines.append(
                 f'IMD decile {imd_int} (1 = most deprived) indicates significantly greater '
-                f'deprivation than PPFI decile {ppfi_int} (1 = most deprived) indicates '
+                f'deprivation than PPFI decile {ppfi_int} (1 = highest priority) indicates '
                 'food vulnerability for this area.'
             )
             ppfi_vals = {col: row[col] for col, _ in PPFI_LSOA_DOMAIN_LABELS if row.get(col) is not None}
@@ -121,7 +121,7 @@ def _hover_narrative(row, geography: str, n_lad: int = 0) -> str:
 
         elif diff < -3:
             lines.append(
-                f'PPFI decile {ppfi_int} (1 = most deprived) indicates significantly '
+                f'PPFI decile {ppfi_int} (1 = highest priority) indicates significantly '
                 f'greater food vulnerability than IMD decile {imd_int} (1 = most deprived) '
                 'indicates general deprivation for this area.'
             )
@@ -148,12 +148,12 @@ def _hover_narrative(row, geography: str, n_lad: int = 0) -> str:
             if diff > 0:
                 lines.append(
                     f'IMD decile {imd_int} (1 = most deprived) indicates more deprivation than '
-                    f'PPFI decile {ppfi_int} (1 = most deprived) indicates food vulnerability '
+                    f'PPFI decile {ppfi_int} (1 = highest priority) indicates food vulnerability '
                     f'({abs_diff:.0f} decile gap).'
                 )
             else:
                 lines.append(
-                    f'PPFI decile {ppfi_int} (1 = most deprived) indicates greater food '
+                    f'PPFI decile {ppfi_int} (1 = highest priority) indicates greater food '
                     f'vulnerability than IMD decile {imd_int} (1 = most deprived) indicates '
                     f'general deprivation ({abs_diff:.0f} decile gap).'
                 )
@@ -171,12 +171,12 @@ def _hover_narrative(row, geography: str, n_lad: int = 0) -> str:
         if diff > moderate_thr:
             lines.append(
                 f'IMD rank {imd_int} (1 = most deprived) indicates significantly greater '
-                f'deprivation than PPFI rank {ppfi_int} (1 = most deprived) indicates '
+                f'deprivation than PPFI rank {ppfi_int} (1 = highest priority) indicates '
                 'food vulnerability for this local authority.'
             )
         elif diff < -moderate_thr:
             lines.append(
-                f'PPFI rank {ppfi_int} (1 = most deprived) indicates significantly greater '
+                f'PPFI rank {ppfi_int} (1 = highest priority) indicates significantly greater '
                 f'food vulnerability than IMD rank {imd_int} (1 = most deprived) indicates '
                 'general deprivation for this local authority.'
             )
@@ -189,11 +189,11 @@ def _hover_narrative(row, geography: str, n_lad: int = 0) -> str:
             if diff > 0:
                 lines.append(
                     f'IMD rank {imd_int} (1 = most deprived) indicates more deprivation than '
-                    f'PPFI rank {ppfi_int} (1 = most deprived) indicates food vulnerability.'
+                    f'PPFI rank {ppfi_int} (1 = highest priority) indicates food vulnerability.'
                 )
             else:
                 lines.append(
-                    f'PPFI rank {ppfi_int} (1 = most deprived) indicates greater food '
+                    f'PPFI rank {ppfi_int} (1 = highest priority) indicates greater food '
                     f'vulnerability than IMD rank {imd_int} (1 = most deprived) indicates '
                     'general deprivation.'
                 )
