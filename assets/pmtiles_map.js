@@ -13,17 +13,21 @@
   };
   const DECILE_BINS = [1,2,3,4,5,6,7,8,9,10];
 
+  const CARTO_API_KEY =
+    (typeof window !== "undefined" && window.CARTO_API_KEY) || "";
+
   const BASEMAP_TILES = [
-    "https://cartodb-basemaps-a.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png",
-    "https://cartodb-basemaps-b.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png",
-    "https://cartodb-basemaps-c.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png",
-    "https://cartodb-basemaps-d.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png",
+      `https://cartodb-basemaps-a.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,
+      `https://cartodb-basemaps-b.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,
+      `https://cartodb-basemaps-c.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,
+      `https://cartodb-basemaps-d.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,
   ];
+
   const LABELS_TILES = [
-    "https://cartodb-basemaps-a.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png",
-    "https://cartodb-basemaps-b.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png",
-    "https://cartodb-basemaps-c.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png",
-    "https://cartodb-basemaps-d.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png",
+      `https://cartodb-basemaps-a.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,
+      `https://cartodb-basemaps-b.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,
+      `https://cartodb-basemaps-c.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,
+      `https://cartodb-basemaps-d.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`,
   ];
   const BASEMAP_ATTRIB =
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';

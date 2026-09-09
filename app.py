@@ -6,6 +6,7 @@ from layouts.main_layout import layout
 
 from pathlib import Path
 
+
 def load_cookies_html() -> str:
     try:
         return Path("cookies.html").read_text(encoding="utf-8").strip()
@@ -16,6 +17,7 @@ cookies_html = load_cookies_html()
 
 # PMTiles archive URL; env var on Azure, falls back to local tile server in dev
 PMTILES_URL = os.environ.get("PMTILES_URL", "http://localhost:8080/england.pmtiles")
+CARTO_API_KEY = os.environ["CARTO_API_KEY"]
 
 app = Dash(
     __name__,
@@ -27,7 +29,10 @@ app = Dash(
         <title>{{%title%}}</title>
         {{%favicon%}}
         {{%css%}}
-        <script>window.PMTILES_URL = "{PMTILES_URL}";</script>
+        <script>
+        window.PMTILES_URL = "{PMTILES_URL}";
+        window.CARTO_API_KEY = "{CARTO_API_KEY}";
+        </script>
     </head>
     <body>
         {{%app_entry%}}
