@@ -3,7 +3,8 @@ import geopandas as gpd
 from shapely.geometry import mapping
 
 import plotly.express as px
-
+import os
+CARTO_API_KEY = os.environ.get("CARTO_API_KEY", "")
 from utils.constants import (
     PPFI_DOMAINS_LSOA, IMD_DOMAINS_LSOA,
     PPFI_DOMAINS_LAD,  IMD_DOMAINS_LAD,
@@ -437,7 +438,7 @@ def make_map(
 
     fig.update_layout(
         mapbox=dict(
-            style="carto-positron",
+            style=f"https://basemaps.cartocdn.com/gl/positron-gl-style/style.json?key={CARTO_API_KEY}",
             zoom=5.3,
             center={"lat": 53.7, "lon": -1.5},
         ),
